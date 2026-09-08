@@ -1,0 +1,60 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Playfair Display", "Georgia", serif;
+  --font-sans: "Montserrat", "Segoe UI", system-ui, sans-serif;
+  /* Fonte do logotipo (Mini Manual Id Visual Ganda). "Timberline" é uma fonte paga —
+     não temos o arquivo licenciado, então o navegador cai no fallback cursivo abaixo
+     a menos que a fonte já esteja instalada na máquina de quem acessa. */
+  --font-script: "Timberline", "Segoe Script", cursive;
+
+  /* Identidade visual — Mini Manual Id Visual Ganda */
+  --color-brown-dark: #b12028; /* vermelho principal da marca */
+  --color-brown-mid: #ca6d4f; /* terracota (secundária) */
+  --color-rose: #e5b7a1; /* tom claro derivado da terracota, para acentos suaves */
+  --color-beige: #f2dac7; /* creme mais saturado, para cards sobre o fundo */
+  --color-bg: #f9eddc; /* creme (fundo) */
+
+  --color-success: #4c8d6a;
+  --color-alert: #8f1a20; /* vermelho da marca, mais escuro, para diferenciar de erro */
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background-color: var(--color-bg);
+  color: var(--color-brown-dark);
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@media print {
+  @page {
+    margin: 1.5cm;
+  }
+
+  body {
+    background: white;
+  }
+}
