@@ -119,11 +119,6 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
     if (!formaPagamento) return showToast('Escolha como vai pagar.')
     if (!enderecoFinal) return showToast('Confirme o endereço de entrega.')
 
-    // Abre a aba do WhatsApp já aqui, ainda de forma síncrona no clique —
-    // se esperar a resposta do servidor pra só então abrir, o navegador
-    // trata como pop-up "não solicitado" e bloqueia.
-    const janela = window.open('', '_blank')
-
     setEnviando(true)
     try {
       await registrarPedidoLoja({
@@ -151,10 +146,8 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
         endereco: enderecoFinal,
       })
 
-      if (janela) janela.location.href = link
       onEnviado(link)
     } catch (err) {
-      if (janela) janela.close()
       if (err?.message?.includes('Estoque insuficiente')) {
         showToast(err.message)
       } else {
@@ -432,28 +425,32 @@ export default function LojaPage() {
             <div className="w-16 h-16 rounded-full bg-[var(--color-success)]/10 flex items-center justify-center">
               <MessageCircle size={32} className="text-[var(--color-success)]" />
             </div>
-            <p className="font-display text-2xl font-semibold text-[var(--color-success)]">Pedido enviado!</p>
+            <p className="font-display text-2xl font-semibold text-[var(--color-success)]">Pedido registrado!</p>
+            <p className="text-sm text-[var(--color-brown-mid)]">
+              Falta só um passo: toque no botão abaixo pra abrir o WhatsApp com a mensagem do seu pedido já pronta.
+            </p>
+
+            <a
+              href={pedidoEnviado.link}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-2 min-h-[56px] w-full rounded-2xl font-semibold text-white text-lg bg-[var(--color-success)] active:opacity-90"
+            >
+              <MessageCircle size={22} /> Abrir WhatsApp
+            </a>
 
             <div className="flex items-start gap-2 rounded-2xl bg-[var(--color-beige)] p-3 text-left">
               <AlertTriangle size={20} className="text-[var(--color-brown-dark)] shrink-0 mt-0.5" />
               <p className="text-sm font-semibold text-[var(--color-brown-dark)]">
-                Importante: confira se o WhatsApp abriu com a mensagem do seu pedido pronta, e toque em{' '}
-                <span className="underline">Enviar</span> lá dentro. Sem esse passo, o pedido não chega até nós!
+                Importante: depois de abrir, toque em <span className="underline">Enviar</span> lá dentro do
+                WhatsApp. Sem esse passo, o pedido não chega até nós!
               </p>
             </div>
-
-            <p className="text-sm text-[var(--color-brown-mid)]">
-              Se o WhatsApp não abriu sozinho,{' '}
-              <a href={pedidoEnviado.link} target="_blank" rel="noreferrer" className="underline font-semibold">
-                toque aqui para abrir a mensagem
-              </a>
-              .
-            </p>
 
             <button
               type="button"
               onClick={() => setPedidoEnviado(null)}
-              className="mt-2 min-h-[48px] w-full rounded-2xl border-2 border-[var(--color-beige)] font-semibold text-[var(--color-brown-dark)]"
+              className="mt-1 min-h-[48px] w-full rounded-2xl border-2 border-[var(--color-beige)] font-semibold text-[var(--color-brown-dark)]"
             >
               Fazer outro pedido
             </button>
