@@ -2,7 +2,7 @@
 // Formato: código do país (55) + DDD + número, só dígitos.
 export const WHATSAPP_LOJA = '5511975753789'
 
-export function linkWhatsAppPedido({ nome, itens, total, formaPagamentoLabel }) {
+export function linkWhatsAppPedido({ nome, itens, total, formaPagamentoLabel, endereco }) {
   const linhas = itens.map((item) => `${item.linha} - ${item.subtotalFormatado}`)
   const texto = [
     'Olá! Gostaria de fazer um pedido:',
@@ -13,6 +13,7 @@ export function linkWhatsAppPedido({ nome, itens, total, formaPagamentoLabel }) 
     '',
     `Nome: ${nome}`,
     ...(formaPagamentoLabel ? [`Pagamento: ${formaPagamentoLabel}`] : []),
+    ...(endereco ? [`Endereço: ${endereco}`] : []),
   ].join('\n')
 
   return `https://wa.me/${WHATSAPP_LOJA}?text=${encodeURIComponent(texto)}`

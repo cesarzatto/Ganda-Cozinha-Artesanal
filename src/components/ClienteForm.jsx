@@ -24,6 +24,8 @@ export default function ClienteForm({ clienteInicial, valoresIniciais, onSalvo, 
   const showToast = useToast()
   const [campos, setCampos] = useState(() => ({ ...ESTADO_INICIAL, ...valoresIniciais }))
   const [salvando, setSalvando] = useState(false)
+  const [buscandoCep, setBuscandoCep] = useState(false)
+  const [cidadeUfCep, setCidadeUfCep] = useState('')
 
   useEffect(() => {
     if (!clienteInicial) return
@@ -45,6 +47,32 @@ export default function ClienteForm({ clienteInicial, valoresIniciais, onSalvo, 
 
   function set(campo, valor) {
     setCampos((c) => ({ ...c, [campo]: valor }))
+  }
+
+  // Busca o endereço pelo CEP (ViaCEP, gratuito, sem chave) assim que o
+  // campo perde o foco com 8 dígitos — preenche a rua automaticamente,
+  // deixando só número e complemento pra digitar.
+  async function handleCepBlur() {
+    const cepLimpo = campos.cep.replace(/\D/g, '')
+    setCidadeUfCep('')
+    if (cepLimpo.length !== 8) return
+
+    setBuscandoCep(true)
+    try {
+      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
+      const data = await res.json()
+      if (data.erro) {
+        showToast('CEP não encontrado.')
+        return
+      }
+      const rua = [data.logradouro, data.bairro].filter(Boolean).join(' - ')
+      if (rua) set('rua', rua)
+      if (data.localidade && data.uf) setCidadeUfCep(`${data.localidade}/${data.uf}`)
+    } catch {
+      // sem internet ou API fora do ar: deixa a pessoa preencher na mão, sem travar o cadastro
+    } finally {
+      setBuscandoCep(false)
+    }
   }
 
   async function handleSubmit(e) {
@@ -169,9 +197,12 @@ export default function ClienteForm({ clienteInicial, valoresIniciais, onSalvo, 
         <input
           value={campos.cep}
           onChange={(e) => set('cep', e.target.value)}
+          onBlur={handleCepBlur}
           placeholder="00000-000"
           className={inputClass}
         />
+        {buscandoCep && <span className="text-xs text-[var(--color-brown-mid)]">Buscando endereço...</span>}
+        {cidadeUfCep && <span className="text-xs text-[var(--color-brown-mid)]">{cidadeUfCep}</span>}
       </label>
 
       <label className="flex flex-col gap-1">

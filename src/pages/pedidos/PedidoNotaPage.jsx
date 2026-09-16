@@ -56,7 +56,11 @@ export default function PedidoNotaPage() {
 
   return (
     <div className="min-h-full bg-[var(--color-bg)] print:bg-white">
-      <style>{'@media print { @page { size: 58mm auto; margin: 0; } }'}</style>
+      <style>
+        {
+          '@media print { @page { size: 58mm auto; margin: 2mm 0; } body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }'
+        }
+      </style>
 
       <div className="print:hidden sticky top-0 z-10 bg-[var(--color-brown-dark)] text-white px-4 py-3 flex items-center justify-between">
         <button
@@ -81,7 +85,7 @@ export default function PedidoNotaPage() {
         </div>
       )}
 
-      <div className="w-[58mm] mx-auto bg-white p-2 print:p-1.5 font-mono text-[11px] leading-snug text-black">
+      <div className="w-[58mm] print:w-[48mm] mx-auto bg-white p-2 print:p-0 print:pt-3 print:pb-4 font-mono text-[11px] leading-snug text-black">
         <div className="text-center mb-2">
           <p className="font-bold text-[13px]">GANDA COZINHA ARTESANAL</p>
           <p>{isOrcamento ? `Orçamento — ${venda.titulo}` : `Pedido #${venda.numero_pedido}`}</p>
@@ -91,6 +95,7 @@ export default function PedidoNotaPage() {
 
         <p>Cliente: {nomeCliente(venda)}</p>
         {telefone && <p>Tel: {telefone}</p>}
+        {venda.endereco_entrega && <p>Entregar em: {venda.endereco_entrega}</p>}
         <p>Data: {formatDate(venda.data_venda)}</p>
         {venda.data_entrega && <p>Entrega: {formatDate(venda.data_entrega)}</p>}
 

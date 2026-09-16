@@ -178,6 +178,7 @@ create table if not exists vendas (
   pedido_online boolean not null default false,
   telefone_pedido text,
   notinha_impressa boolean not null default false,
+  salvar_endereco_principal boolean not null default false,
   created_at timestamptz not null default now()
 );
 
@@ -358,7 +359,8 @@ create or replace function registrar_venda(
   p_ifood boolean default false,
   p_titulo text default null,
   p_pedido_online boolean default false,
-  p_telefone_pedido text default null
+  p_telefone_pedido text default null,
+  p_salvar_endereco_principal boolean default false
 ) returns uuid
 language plpgsql
 security definer
@@ -403,7 +405,7 @@ begin
   insert into vendas (
     cliente_id, valor_total, desconto, forma_contato, data_venda, data_entrega,
     forma_pagamento, observacao, status, tipo_frete, distancia_km_ida, custo_entrega, pago,
-    endereco_entrega, sem_valor, ifood, titulo, pedido_online, telefone_pedido
+    endereco_entrega, sem_valor, ifood, titulo, pedido_online, telefone_pedido, salvar_endereco_principal
   )
   values (
     p_cliente_id,
@@ -424,7 +426,8 @@ begin
     coalesce(p_ifood, false),
     p_titulo,
     coalesce(p_pedido_online, false),
-    p_telefone_pedido
+    p_telefone_pedido,
+    coalesce(p_salvar_endereco_principal, false)
   )
   returning id into v_venda_id;
 
@@ -806,7 +809,7 @@ begin
 end;
 $$;
 
-grant execute on function registrar_venda(uuid, jsonb, numeric, numeric, text, date, date, text, text, text, numeric, numeric, boolean, text, boolean, boolean, text, boolean, text) to anon, authenticated;
+grant execute on function registrar_venda(uuid, jsonb, numeric, numeric, text, date, date, text, text, text, numeric, numeric, boolean, text, boolean, boolean, text, boolean, text, boolean) to anon, authenticated;
 grant execute on function buscar_cliente_por_telefone(text) to anon, authenticated;
 grant execute on function cancelar_venda(uuid) to anon, authenticated;
 grant execute on function registrar_movimentacao_insumo(uuid, text, numeric, text, numeric) to anon, authenticated;

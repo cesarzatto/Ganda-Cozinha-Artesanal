@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabaseClient.js'
+import { getCliente } from './useClientes.js'
 
 export async function buscarClientePorTelefone(telefone) {
   const { data, error } = await supabase.rpc('buscar_cliente_por_telefone', { p_telefone: telefone })
@@ -6,7 +7,24 @@ export async function buscarClientePorTelefone(telefone) {
   return data
 }
 
-export async function registrarPedidoLoja({ nome, telefone, itens, valorTotal, formaPagamento }) {
+// Usado no checkout público pra saber se já existe endereço cadastrado
+// naquele telefone, pra oferecer "usar esse endereço?" antes de pedir pra
+// digitar de novo. Retorna null quando o telefone não bate com ninguém.
+export async function buscarClienteParaCheckout(telefone) {
+  const clienteId = await buscarClientePorTelefone(telefone)
+  if (!clienteId) return null
+  return getCliente(clienteId)
+}
+
+export async function registrarPedidoLoja({
+  nome,
+  telefone,
+  itens,
+  valorTotal,
+  formaPagamento,
+  endereco,
+  salvarEnderecoPrincipal,
+}) {
   const clienteId = await buscarClientePorTelefone(telefone)
 
   const { data, error } = await supabase.rpc('registrar_venda', {
@@ -27,12 +45,13 @@ export async function registrarPedidoLoja({ nome, telefone, itens, valorTotal, f
     p_distancia_km_ida: null,
     p_custo_entrega: null,
     p_pago: false,
-    p_endereco_entrega: null,
+    p_endereco_entrega: endereco || null,
     p_sem_valor: false,
     p_ifood: false,
     p_titulo: nome,
     p_pedido_online: true,
     p_telefone_pedido: telefone,
+    p_salvar_endereco_principal: Boolean(salvarEnderecoPrincipal),
   })
   if (error) throw error
 

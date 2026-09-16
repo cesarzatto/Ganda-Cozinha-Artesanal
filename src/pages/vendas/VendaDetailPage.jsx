@@ -258,6 +258,12 @@ export default function VendaDetailPage() {
                   : 'Cliente removido')}
           </h3>
           <p className="text-sm text-[var(--color-brown-mid)]">Venda em {formatDate(venda.data_venda)}</p>
+          {venda.pedido_online && venda.endereco_entrega && (
+            <p className="text-sm text-[var(--color-brown-mid)]">
+              <span className="font-semibold text-[var(--color-brown-dark)]">Entregar em:</span>{' '}
+              {venda.endereco_entrega}
+            </p>
+          )}
           <div className="flex items-center gap-1.5 flex-wrap">
             {venda.pedido_online && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-beige)] text-[var(--color-brown-dark)] px-2.5 py-0.5 text-xs font-semibold">
@@ -279,6 +285,9 @@ export default function VendaDetailPage() {
               <p className="text-sm font-semibold text-[var(--color-alert)]">
                 Esse pedido veio da loja online, mas o telefone{venda.telefone_pedido ? ` (${venda.telefone_pedido})` : ''} não bate
                 com nenhum cliente cadastrado.
+                {venda.salvar_endereco_principal && venda.endereco_entrega && (
+                  <> A cliente pediu pra usar o endereço acima como principal — vale preencher ao cadastrar.</>
+                )}
               </p>
             </div>
             <Button type="button" onClick={() => setNovoClienteAberto(true)}>
