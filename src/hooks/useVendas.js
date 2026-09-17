@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useAutoRefresh } from './useAutoRefresh.js'
 
 const SELECT_VENDA =
   'id, numero_pedido, titulo, status, entregue, valor_total, desconto, forma_contato, forma_pagamento, pago, data_venda, data_entrega, data_validade, sem_valor, ifood, pedido_online, telefone_pedido, notinha_impressa, salvar_endereco_principal, observacao, tipo_frete, distancia_km_ida, custo_entrega, endereco_entrega, created_at, cliente_id, clientes ( nome, telefone, cep, rua, numero, complemento ), venda_itens ( quantidade, preco_unitario, produtos ( id, nome, rendimento_lote, rendimento_unidade_medida ) )'
@@ -9,8 +10,8 @@ export function useVendas() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchVendas = useCallback(async () => {
-    setLoading(true)
+  const fetchVendas = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     const { data, error } = await supabase
       .from('vendas')
       .select(SELECT_VENDA)
@@ -20,12 +21,13 @@ export function useVendas() {
 
     if (error) setError(error)
     else setVendas(data)
-    setLoading(false)
+    if (!silencioso) setLoading(false)
   }, [])
 
   useEffect(() => {
     fetchVendas()
   }, [fetchVendas])
+  useAutoRefresh(() => fetchVendas(true))
 
   return { vendas, loading, error, refetch: fetchVendas }
 }
@@ -35,23 +37,27 @@ export function useOrcamentos(busca = '') {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchOrcamentos = useCallback(async () => {
-    setLoading(true)
-    let query = supabase.from('vendas').select(SELECT_VENDA).eq('status', 'orcamento').order('created_at', {
-      ascending: false,
-    })
-    if (busca.trim()) {
-      query = query.ilike('titulo', `%${busca.trim()}%`)
-    }
-    const { data, error } = await query
-    if (error) setError(error)
-    else setOrcamentos(data)
-    setLoading(false)
-  }, [busca])
+  const fetchOrcamentos = useCallback(
+    async (silencioso = false) => {
+      if (!silencioso) setLoading(true)
+      let query = supabase.from('vendas').select(SELECT_VENDA).eq('status', 'orcamento').order('created_at', {
+        ascending: false,
+      })
+      if (busca.trim()) {
+        query = query.ilike('titulo', `%${busca.trim()}%`)
+      }
+      const { data, error } = await query
+      if (error) setError(error)
+      else setOrcamentos(data)
+      if (!silencioso) setLoading(false)
+    },
+    [busca],
+  )
 
   useEffect(() => {
     fetchOrcamentos()
   }, [fetchOrcamentos])
+  useAutoRefresh(() => fetchOrcamentos(true))
 
   return { orcamentos, loading, error, refetch: fetchOrcamentos }
 }
@@ -61,8 +67,8 @@ export function useEntregasPendentes() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchEntregas = useCallback(async () => {
-    setLoading(true)
+  const fetchEntregas = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     const { data, error } = await supabase
       .from('vendas')
       .select(SELECT_VENDA)
@@ -73,12 +79,13 @@ export function useEntregasPendentes() {
 
     if (error) setError(error)
     else setEntregas(data)
-    setLoading(false)
+    if (!silencioso) setLoading(false)
   }, [])
 
   useEffect(() => {
     fetchEntregas()
   }, [fetchEntregas])
+  useAutoRefresh(() => fetchEntregas(true))
 
   return { entregas, loading, error, refetch: fetchEntregas }
 }
@@ -88,8 +95,8 @@ export function useVendasSemCliente() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchVendas = useCallback(async () => {
-    setLoading(true)
+  const fetchVendas = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     const { data, error } = await supabase
       .from('vendas')
       .select(SELECT_VENDA)
@@ -100,12 +107,13 @@ export function useVendasSemCliente() {
 
     if (error) setError(error)
     else setVendas(data)
-    setLoading(false)
+    if (!silencioso) setLoading(false)
   }, [])
 
   useEffect(() => {
     fetchVendas()
   }, [fetchVendas])
+  useAutoRefresh(() => fetchVendas(true))
 
   return { vendas, loading, error, refetch: fetchVendas }
 }

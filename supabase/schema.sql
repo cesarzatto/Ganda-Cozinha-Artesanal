@@ -469,7 +469,20 @@ language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  v_subtotal_itens numeric;
+  v_desconto numeric;
 begin
+  -- o total gravado precisa refletir o frete atual: recalcula a partir
+  -- dos itens + desconto já salvos, já que editar a entrega aqui não
+  -- passa pelos itens de novo (diferente do registro/edição de orçamento)
+  select coalesce(sum(vi.preco_unitario * vi.quantidade), 0)
+  into v_subtotal_itens
+  from venda_itens vi
+  where vi.venda_id = p_venda_id;
+
+  select desconto into v_desconto from vendas where id = p_venda_id;
+
   update vendas
   set data_entrega = p_data_entrega,
       forma_pagamento = p_forma_pagamento,
@@ -478,7 +491,8 @@ begin
       distancia_km_ida = p_distancia_km_ida,
       custo_entrega = p_custo_entrega,
       pago = coalesce(p_pago, true),
-      endereco_entrega = p_endereco_entrega
+      endereco_entrega = p_endereco_entrega,
+      valor_total = greatest(v_subtotal_itens - coalesce(v_desconto, 0), 0) + coalesce(p_custo_entrega, 0)
   where id = p_venda_id;
 end;
 $$;

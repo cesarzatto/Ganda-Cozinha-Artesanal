@@ -85,9 +85,10 @@ export default function PedidoNotaPage() {
         </div>
       )}
 
-      <div className="w-[58mm] print:w-[48mm] mx-auto bg-white p-2 print:p-0 print:pt-3 print:pb-4 font-mono text-[11px] leading-snug text-black">
+      <div className="w-[58mm] print:w-[44mm] mx-auto bg-white p-2 print:px-[3px] print:pt-3 print:pb-4 font-mono text-[10px] leading-snug text-black break-words">
         <div className="text-center mb-2">
-          <p className="font-bold text-[13px]">GANDA COZINHA ARTESANAL</p>
+          <p className="font-bold text-[12px]">GANDA COZINHA
+            <br className="hidden print:inline" /> ARTESANAL</p>
           <p>{isOrcamento ? `Orçamento — ${venda.titulo}` : `Pedido #${venda.numero_pedido}`}</p>
         </div>
 

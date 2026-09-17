@@ -1,6 +1,7 @@
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { ToastProvider } from './components/ToastProvider.jsx'
 import { SideMenuProvider } from './components/SideMenuProvider.jsx'
+import NovoPedidoWatcher from './components/NovoPedidoWatcher.jsx'
 import SupabaseSetupNotice from './components/SupabaseSetupNotice.jsx'
 import { supabaseConfigured } from './lib/supabaseClient.js'
 import ResumoPage from './pages/dashboard/ResumoPage.jsx'
@@ -23,6 +24,8 @@ import FinanceiroPage from './pages/financeiro/FinanceiroPage.jsx'
 import LojaPage from './pages/loja/LojaPage.jsx'
 
 export default function App() {
+  const location = useLocation()
+
   if (!supabaseConfigured) {
     return <SupabaseSetupNotice />
   }
@@ -30,6 +33,8 @@ export default function App() {
   return (
     <ToastProvider>
       <SideMenuProvider>
+        {/* A loja pública é a tela do cliente — o alerta sonoro é só pra Ganda */}
+        {!location.pathname.startsWith('/loja') && <NovoPedidoWatcher />}
         <Routes>
           <Route path="/" element={<ResumoPage />} />
 

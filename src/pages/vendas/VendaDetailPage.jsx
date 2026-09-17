@@ -550,7 +550,11 @@ export default function VendaDetailPage() {
 
       <ClienteQuickCreateModal
         open={novoClienteAberto}
-        valoresIniciais={{ nome: venda.titulo || '', telefone: venda.telefone_pedido || '' }}
+        valoresIniciais={{
+          nome: venda.titulo || '',
+          telefone: venda.telefone_pedido || '',
+          rua: venda.endereco_entrega || '',
+        }}
         onCriado={handleClienteCadastrado}
         onFechar={() => setNovoClienteAberto(false)}
       />

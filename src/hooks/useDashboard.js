@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useAutoRefresh } from './useAutoRefresh.js'
 
 function monthRange(offset = 0) {
   const now = new Date()
@@ -61,8 +62,8 @@ export function useDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchResumo = useCallback(async () => {
-    setLoading(true)
+  const fetchResumo = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     try {
       const custoMap = await fetchProdutosCustoMap()
       const atual = monthRange(0)
@@ -76,13 +77,14 @@ export function useDashboard() {
     } catch (err) {
       setError(err)
     } finally {
-      setLoading(false)
+      if (!silencioso) setLoading(false)
     }
   }, [])
 
   useEffect(() => {
     fetchResumo()
   }, [fetchResumo])
+  useAutoRefresh(() => fetchResumo(true))
 
   return { resumo, loading, error, refetch: fetchResumo }
 }

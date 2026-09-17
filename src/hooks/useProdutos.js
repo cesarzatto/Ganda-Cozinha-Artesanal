@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient.js'
+import { useAutoRefresh } from './useAutoRefresh.js'
 
 export function useProdutos() {
   const [produtos, setProdutos] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const fetchProdutos = useCallback(async () => {
-    setLoading(true)
+  const fetchProdutos = useCallback(async (silencioso = false) => {
+    if (!silencioso) setLoading(true)
     const { data, error } = await supabase
       .from('produtos_com_custo')
       .select('*')
@@ -15,12 +16,13 @@ export function useProdutos() {
 
     if (error) setError(error)
     else setProdutos(data)
-    setLoading(false)
+    if (!silencioso) setLoading(false)
   }, [])
 
   useEffect(() => {
     fetchProdutos()
   }, [fetchProdutos])
+  useAutoRefresh(() => fetchProdutos(true))
 
   return { produtos, loading, error, refetch: fetchProdutos }
 }

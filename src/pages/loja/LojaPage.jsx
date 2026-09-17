@@ -173,11 +173,16 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
         </div>
 
         <div className="px-5 pb-5 overflow-y-auto flex flex-col gap-3">
-          <div className="flex justify-between items-center text-sm pb-2 border-b border-[var(--color-beige)]">
-            <span className="text-[var(--color-brown-mid)]">
-              {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
-            </span>
-            <span className="font-display text-lg font-semibold">{formatCurrency(total)}</span>
+          <div className="flex flex-col gap-0.5 pb-2 border-b border-[var(--color-beige)]">
+            <div className="flex justify-between items-center text-sm">
+              <span className="text-[var(--color-brown-mid)]">
+                {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
+              </span>
+              <span className="font-display text-lg font-semibold">{formatCurrency(total)}</span>
+            </div>
+            <p className="text-xs text-[var(--color-brown-mid)] text-right">
+              Valor sem frete — a entrega é combinada com a gente depois
+            </p>
           </div>
 
           <label className="flex flex-col gap-1">
@@ -466,6 +471,7 @@ export default function LojaPage() {
                 {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
               </p>
               <p className="font-display text-xl font-semibold">{formatCurrency(total)}</p>
+              <p className="text-xs text-[var(--color-brown-mid)]">Valor sem frete</p>
             </div>
             <button
               type="button"
