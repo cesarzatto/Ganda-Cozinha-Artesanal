@@ -59,9 +59,17 @@ const inputClass =
 
 // Promoção: a cada 10 marmitas compradas, ganha mais 1 de brinde (até
 // R$27 de valor) pagando no Pix. Se a marmita escolhida como brinde
-// custar mais que isso, cobra só a diferença.
+// custar mais que isso, cobra só a diferença. O aviso já aparece um pouco
+// antes (8 marmitas), pra incentivar a completar as 10.
 const PROMO_QTD_MINIMA = 10
+const PROMO_QTD_AVISO = 8
 const PROMO_DESCONTO_MAXIMO = 27
+
+function mensagemPromo(qtd) {
+  if (qtd >= PROMO_QTD_MINIMA) return '🎁 Você já pode ganhar 1 marmita grátis pagando no Pix!'
+  const faltam = PROMO_QTD_MINIMA - qtd
+  return `🎁 Faltam ${faltam} marmita${faltam === 1 ? '' : 's'} pra você ganhar 1 de brinde pagando no Pix!`
+}
 
 function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) {
   const showToast = useToast()
@@ -115,6 +123,7 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
 
   const qtdTotalCarrinho = itensCarrinho.reduce((soma, item) => soma + item.quantidade, 0)
   const elegivelPromo = qtdTotalCarrinho >= PROMO_QTD_MINIMA
+  const elegivelAvisoPromo = qtdTotalCarrinho >= PROMO_QTD_AVISO
 
   // Quanto de cada produto já está no carrinho, pra saber se ainda sobra
   // estoque pra oferecer aquele produto como brinde também.
@@ -253,11 +262,13 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
             </p>
           </div>
 
-          {elegivelPromo && formaPagamento !== 'pix' && (
+          {elegivelAvisoPromo && formaPagamento !== 'pix' && (
             <div className="flex items-start gap-2 rounded-2xl bg-[var(--color-beige)] p-3 text-left">
               <Gift size={20} className="text-[var(--color-brown-dark)] shrink-0 mt-0.5" />
               <p className="text-sm font-semibold text-[var(--color-brown-dark)]">
-                Você já pode ganhar 1 marmita grátis! É só escolher Pix como forma de pagamento.
+                {elegivelPromo
+                  ? 'Você já pode ganhar 1 marmita grátis! É só escolher Pix como forma de pagamento.'
+                  : mensagemPromo(qtdTotalCarrinho)}
               </p>
             </div>
           )}
@@ -483,18 +494,29 @@ export default function LojaPage() {
   const total = itensCarrinho.reduce((soma, item) => soma + Number(item.produto.preco_venda) * item.quantidade, 0)
   const qtdTotalCarrinho = itensCarrinho.reduce((soma, item) => soma + item.quantidade, 0)
   const elegivelPromo = qtdTotalCarrinho >= PROMO_QTD_MINIMA
+  const elegivelAvisoPromo = qtdTotalCarrinho >= PROMO_QTD_AVISO
 
-  // Avisa com um toast assim que o carrinho cruza as 10 marmitas — só uma
-  // vez por vez que isso acontece, não a cada re-render.
-  const jaAvisouPromoRef = useRef(false)
+  // Avisa com um toast assim que o carrinho cruza as 8 marmitas (incentivo
+  // pra completar as 10) e outro, separado, ao cruzar as 10 de verdade —
+  // cada um só dispara uma vez por vez que isso acontece, não a cada
+  // re-render.
+  const jaAvisouProximoRef = useRef(false)
+  const jaAvisouElegivelRef = useRef(false)
   useEffect(() => {
-    if (elegivelPromo && !jaAvisouPromoRef.current) {
-      jaAvisouPromoRef.current = true
-      showToast('🎁 Você já pode ganhar 1 marmita grátis pagando no Pix!')
-    } else if (!elegivelPromo) {
-      jaAvisouPromoRef.current = false
+    if (elegivelAvisoPromo && !jaAvisouProximoRef.current) {
+      jaAvisouProximoRef.current = true
+      if (!elegivelPromo) showToast(mensagemPromo(qtdTotalCarrinho))
+    } else if (!elegivelAvisoPromo) {
+      jaAvisouProximoRef.current = false
     }
-  }, [elegivelPromo, showToast])
+
+    if (elegivelPromo && !jaAvisouElegivelRef.current) {
+      jaAvisouElegivelRef.current = true
+      showToast(mensagemPromo(qtdTotalCarrinho))
+    } else if (!elegivelPromo) {
+      jaAvisouElegivelRef.current = false
+    }
+  }, [elegivelAvisoPromo, elegivelPromo, qtdTotalCarrinho, showToast])
 
   function handlePedidoEnviado(link) {
     setCheckoutAberto(false)
@@ -584,9 +606,9 @@ export default function LojaPage() {
       {!pedidoEnviado && itensCarrinho.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[var(--color-beige)] p-4 shadow-[0_-4px_16px_rgba(59,31,22,0.1)]">
           <div className="max-w-lg mx-auto flex flex-col gap-2">
-            {elegivelPromo && (
+            {elegivelAvisoPromo && (
               <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-success)]">
-                <Gift size={14} /> Ganhe 1 marmita grátis pagando no Pix!
+                <Gift size={14} /> {mensagemPromo(qtdTotalCarrinho)}
               </p>
             )}
             <div className="flex items-center gap-3">
