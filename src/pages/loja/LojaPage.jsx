@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Cookie, Minus, Plus, MessageCircle, X, AlertTriangle } from 'lucide-react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Cookie, Minus, Plus, MessageCircle, X, AlertTriangle, Gift } from 'lucide-react'
 import { getProdutosPublicos } from '../../hooks/useProdutos.js'
 import { registrarPedidoLoja, buscarClienteParaCheckout } from '../../hooks/useLoja.js'
 import { useToast } from '../../components/ToastProvider.jsx'
@@ -57,11 +57,18 @@ function ItemLoja({ produto, quantidade, onChange }) {
 const inputClass =
   'min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-4 outline-none focus:border-[var(--color-rose)]'
 
-function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
+// Promoção: a cada 10 marmitas compradas, ganha mais 1 de brinde (até
+// R$27 de valor) pagando no Pix. Se a marmita escolhida como brinde
+// custar mais que isso, cobra só a diferença.
+const PROMO_QTD_MINIMA = 10
+const PROMO_DESCONTO_MAXIMO = 27
+
+function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) {
   const showToast = useToast()
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('')
+  const [itemGratisId, setItemGratisId] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   const [buscandoCliente, setBuscandoCliente] = useState(false)
@@ -106,6 +113,55 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
 
   const precisaDigitarEndereco = !clienteEncontrado || !enderecoCadastrado || !usarEnderecoCadastrado
 
+  const qtdTotalCarrinho = itensCarrinho.reduce((soma, item) => soma + item.quantidade, 0)
+  const elegivelPromo = qtdTotalCarrinho >= PROMO_QTD_MINIMA
+
+  // Quanto de cada produto já está no carrinho, pra saber se ainda sobra
+  // estoque pra oferecer aquele produto como brinde também.
+  const qtdNoCarrinhoPorProduto = useMemo(() => {
+    const mapa = new Map()
+    for (const item of itensCarrinho) mapa.set(item.produto.id, item.quantidade)
+    return mapa
+  }, [itensCarrinho])
+
+  const opcoesItemGratis = useMemo(
+    () =>
+      (produtos || []).filter((p) => Number(p.estoque_atual) - (qtdNoCarrinhoPorProduto.get(p.id) || 0) >= 1),
+    [produtos, qtdNoCarrinhoPorProduto],
+  )
+
+  // Se deixar de ser elegível (tirou itens do carrinho) ou trocar o
+  // pagamento pra outro que não seja Pix, tira o brinde selecionado.
+  useEffect(() => {
+    if ((!elegivelPromo || formaPagamento !== 'pix') && itemGratisId) setItemGratisId('')
+  }, [elegivelPromo, formaPagamento, itemGratisId])
+
+  const produtoGratis = opcoesItemGratis.find((p) => p.id === itemGratisId) || null
+  const promoAtiva = elegivelPromo && formaPagamento === 'pix' && Boolean(produtoGratis)
+  const descontoPromo = promoAtiva ? Math.min(Number(produtoGratis.preco_venda), PROMO_DESCONTO_MAXIMO) : 0
+  const totalComPromo = total + (produtoGratis ? Number(produtoGratis.preco_venda) : 0) - descontoPromo
+
+  const itensParaEnviar = useMemo(() => {
+    const base = itensCarrinho.map((item) => ({
+      produtoId: item.produto.id,
+      quantidade: item.quantidade,
+      precoUnitario: Number(item.produto.preco_venda),
+      nome: item.produto.nome,
+    }))
+    if (!promoAtiva) return base
+    const existente = base.find((i) => i.produtoId === produtoGratis.id)
+    if (existente) existente.quantidade += 1
+    else {
+      base.push({
+        produtoId: produtoGratis.id,
+        quantidade: 1,
+        precoUnitario: Number(produtoGratis.preco_venda),
+        nome: produtoGratis.nome,
+      })
+    }
+    return base
+  }, [itensCarrinho, promoAtiva, produtoGratis])
+
   const podeEnviar =
     nome.trim().length > 0 &&
     telefone.trim().length > 0 &&
@@ -124,12 +180,14 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
       await registrarPedidoLoja({
         nome: nome.trim(),
         telefone: telefone.trim(),
-        itens: itensCarrinho.map((item) => ({
-          produtoId: item.produto.id,
-          quantidade: item.quantidade,
-          precoUnitario: Number(item.produto.preco_venda),
+        itens: itensParaEnviar.map(({ produtoId, quantidade, precoUnitario }) => ({
+          produtoId,
+          quantidade,
+          precoUnitario,
         })),
-        valorTotal: total,
+        valorTotal: totalComPromo,
+        desconto: descontoPromo,
+        observacao: promoAtiva ? `Promoção 10+1 no Pix aplicada (brinde: ${produtoGratis.nome})` : null,
         formaPagamento,
         endereco: enderecoFinal,
         salvarEnderecoPrincipal: !clienteEncontrado && salvarComoPrincipal,
@@ -137,11 +195,16 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
 
       const link = linkWhatsAppPedido({
         nome: nome.trim(),
-        total: formatCurrency(total),
-        itens: itensCarrinho.map((item) => ({
-          linha: `${item.quantidade}x ${item.produto.nome}`,
-          subtotalFormatado: formatCurrency(Number(item.produto.preco_venda) * item.quantidade),
+        total: formatCurrency(totalComPromo),
+        itens: itensParaEnviar.map((item) => ({
+          linha: `${item.quantidade}x ${item.nome}${
+            promoAtiva && item.produtoId === produtoGratis.id ? ' (inclui 1 brinde 🎁)' : ''
+          }`,
+          subtotalFormatado: formatCurrency(item.precoUnitario * item.quantidade),
         })),
+        descontoLinha: promoAtiva
+          ? `Brinde (promoção 10+1 no Pix): -${formatCurrency(descontoPromo)}`
+          : undefined,
         formaPagamentoLabel: FORMAS_PAGAMENTO.find((f) => f.value === formaPagamento)?.label,
         endereco: enderecoFinal,
       })
@@ -178,12 +241,26 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
               <span className="text-[var(--color-brown-mid)]">
                 {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
               </span>
-              <span className="font-display text-lg font-semibold">{formatCurrency(total)}</span>
+              <span className="font-display text-lg font-semibold">{formatCurrency(totalComPromo)}</span>
             </div>
+            {promoAtiva && (
+              <p className="text-xs font-semibold text-[var(--color-success)] text-right">
+                🎁 Inclui 1 {produtoGratis.nome} de brinde
+              </p>
+            )}
             <p className="text-xs text-[var(--color-brown-mid)] text-right">
               Valor sem frete — a entrega é combinada com a gente depois
             </p>
           </div>
+
+          {elegivelPromo && formaPagamento !== 'pix' && (
+            <div className="flex items-start gap-2 rounded-2xl bg-[var(--color-beige)] p-3 text-left">
+              <Gift size={20} className="text-[var(--color-brown-dark)] shrink-0 mt-0.5" />
+              <p className="text-sm font-semibold text-[var(--color-brown-dark)]">
+                Você já pode ganhar 1 marmita grátis! É só escolher Pix como forma de pagamento.
+              </p>
+            </div>
+          )}
 
           <label className="flex flex-col gap-1">
             <span className="text-sm font-semibold">Seu nome</span>
@@ -285,6 +362,32 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
             ))}
           </select>
 
+          {elegivelPromo && formaPagamento === 'pix' && (
+            <label className="flex flex-col gap-1 rounded-2xl bg-[var(--color-success)]/10 p-3">
+              <span className="text-sm font-semibold flex items-center gap-1.5">
+                <Gift size={16} className="text-[var(--color-success)]" /> Escolha sua marmita grátis!
+              </span>
+              <select
+                value={itemGratisId}
+                onChange={(e) => setItemGratisId(e.target.value)}
+                className={`${inputClass} bg-white`}
+              >
+                <option value="">Selecione...</option>
+                {opcoesItemGratis.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.nome} ({formatCurrency(p.preco_venda)})
+                  </option>
+                ))}
+              </select>
+              {produtoGratis && Number(produtoGratis.preco_venda) > PROMO_DESCONTO_MAXIMO && (
+                <span className="text-xs text-[var(--color-brown-mid)]">
+                  Essa custa mais que R$ 27 — a diferença de{' '}
+                  {formatCurrency(Number(produtoGratis.preco_venda) - PROMO_DESCONTO_MAXIMO)} entra no total.
+                </span>
+              )}
+            </label>
+          )}
+
           <button
             type="button"
             onClick={handleEnviarPedido}
@@ -304,6 +407,7 @@ function CheckoutModal({ total, itensCarrinho, onFechar, onEnviado }) {
 }
 
 export default function LojaPage() {
+  const showToast = useToast()
   const [produtos, setProdutos] = useState([])
   const [carregando, setCarregando] = useState(true)
   const [erro, setErro] = useState(false)
@@ -377,6 +481,20 @@ export default function LojaPage() {
   )
 
   const total = itensCarrinho.reduce((soma, item) => soma + Number(item.produto.preco_venda) * item.quantidade, 0)
+  const qtdTotalCarrinho = itensCarrinho.reduce((soma, item) => soma + item.quantidade, 0)
+  const elegivelPromo = qtdTotalCarrinho >= PROMO_QTD_MINIMA
+
+  // Avisa com um toast assim que o carrinho cruza as 10 marmitas — só uma
+  // vez por vez que isso acontece, não a cada re-render.
+  const jaAvisouPromoRef = useRef(false)
+  useEffect(() => {
+    if (elegivelPromo && !jaAvisouPromoRef.current) {
+      jaAvisouPromoRef.current = true
+      showToast('🎁 Você já pode ganhar 1 marmita grátis pagando no Pix!')
+    } else if (!elegivelPromo) {
+      jaAvisouPromoRef.current = false
+    }
+  }, [elegivelPromo, showToast])
 
   function handlePedidoEnviado(link) {
     setCheckoutAberto(false)
@@ -465,21 +583,28 @@ export default function LojaPage() {
 
       {!pedidoEnviado && itensCarrinho.length > 0 && (
         <div className="fixed bottom-0 left-0 right-0 bg-white border-t-2 border-[var(--color-beige)] p-4 shadow-[0_-4px_16px_rgba(59,31,22,0.1)]">
-          <div className="max-w-lg mx-auto flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <p className="text-sm text-[var(--color-brown-mid)]">
-                {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
+          <div className="max-w-lg mx-auto flex flex-col gap-2">
+            {elegivelPromo && (
+              <p className="flex items-center gap-1.5 text-xs font-semibold text-[var(--color-success)]">
+                <Gift size={14} /> Ganhe 1 marmita grátis pagando no Pix!
               </p>
-              <p className="font-display text-xl font-semibold">{formatCurrency(total)}</p>
-              <p className="text-xs text-[var(--color-brown-mid)]">Valor sem frete</p>
+            )}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-[var(--color-brown-mid)]">
+                  {itensCarrinho.length} {itensCarrinho.length === 1 ? 'item' : 'itens'}
+                </p>
+                <p className="font-display text-xl font-semibold">{formatCurrency(total)}</p>
+                <p className="text-xs text-[var(--color-brown-mid)]">Valor sem frete</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCheckoutAberto(true)}
+                className="flex-1 min-h-[52px] rounded-2xl font-semibold text-white bg-[var(--color-success)] active:opacity-90"
+              >
+                Finalizar pedido
+              </button>
             </div>
-            <button
-              type="button"
-              onClick={() => setCheckoutAberto(true)}
-              className="flex-1 min-h-[52px] rounded-2xl font-semibold text-white bg-[var(--color-success)] active:opacity-90"
-            >
-              Finalizar pedido
-            </button>
           </div>
         </div>
       )}
@@ -488,6 +613,7 @@ export default function LojaPage() {
         <CheckoutModal
           total={total}
           itensCarrinho={itensCarrinho}
+          produtos={produtos}
           onFechar={() => setCheckoutAberto(false)}
           onEnviado={handlePedidoEnviado}
         />

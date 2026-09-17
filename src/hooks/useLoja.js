@@ -24,6 +24,8 @@ export async function registrarPedidoLoja({
   formaPagamento,
   endereco,
   salvarEnderecoPrincipal,
+  desconto,
+  observacao,
 }) {
   const clienteId = await buscarClientePorTelefone(telefone)
 
@@ -34,13 +36,13 @@ export async function registrarPedidoLoja({
       quantidade: item.quantidade,
       preco_unitario: item.precoUnitario,
     })),
-    p_desconto: 0,
+    p_desconto: desconto || 0,
     p_valor_total: valorTotal,
     p_forma_contato: 'whatsapp',
     p_data_venda: new Date().toISOString().slice(0, 10),
     p_data_entrega: null,
     p_forma_pagamento: formaPagamento || null,
-    p_observacao: null,
+    p_observacao: observacao || null,
     p_tipo_frete: 'retirada',
     p_distancia_km_ida: null,
     p_custo_entrega: null,
