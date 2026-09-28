@@ -214,6 +214,15 @@ export async function atualizarEntregaVenda({
   if (error) throw error
 }
 
+export async function atualizarItensVenda({ vendaId, itens, desconto }) {
+  const { error } = await supabase.rpc('atualizar_itens_venda', {
+    p_venda_id: vendaId,
+    p_itens: mapItens(itens),
+    p_desconto: desconto || 0,
+  })
+  if (error) throw error
+}
+
 export async function marcarEntregaVenda(vendaId, entregue) {
   const { error } = await supabase.from('vendas').update({ entregue }).eq('id', vendaId)
   if (error) throw error

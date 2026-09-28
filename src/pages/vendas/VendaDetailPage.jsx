@@ -6,12 +6,14 @@ import {
   Users,
   MoreHorizontal,
   PackageCheck,
-  Printer,
   ExternalLink,
   Store,
   AlertTriangle,
   Trash2,
   Receipt,
+  Pencil,
+  Plus,
+  X,
 } from 'lucide-react'
 import Layout from '../../components/Layout.jsx'
 import Card from '../../components/Card.jsx'
@@ -23,12 +25,14 @@ import { useToast } from '../../components/ToastProvider.jsx'
 import {
   getVenda,
   atualizarEntregaVenda,
+  atualizarItensVenda,
   marcarEntregaVenda,
   marcarNotinhaImpressa,
   cancelarVenda,
   vincularClienteAoPedido,
 } from '../../hooks/useVendas.js'
 import { useConfiguracoes } from '../../hooks/useConfiguracoes.js'
+import { useProdutos } from '../../hooks/useProdutos.js'
 import { useInsumos } from '../../hooks/useInsumos.js'
 import { useInsumosNecessarios } from '../../hooks/useInsumosNecessarios.js'
 import { formatCurrency, formatDate, formatQuantidadeProduto } from '../../lib/format.js'
@@ -55,11 +59,21 @@ export default function VendaDetailPage() {
   const showToast = useToast()
 
   const { config } = useConfiguracoes()
+  const { produtos: produtosDisponiveis } = useProdutos()
+  const produtosVendaveis = useMemo(
+    () => produtosDisponiveis.filter((p) => p.vendido_separadamente),
+    [produtosDisponiveis],
+  )
   const { insumos } = useInsumos()
 
   const [venda, setVenda] = useState(null)
   const [carregando, setCarregando] = useState(true)
   const [salvando, setSalvando] = useState(false)
+
+  const [editandoItens, setEditandoItens] = useState(false)
+  const [linhasItens, setLinhasItens] = useState([])
+  const [descontoItens, setDescontoItens] = useState('0')
+  const [salvandoItens, setSalvandoItens] = useState(false)
 
   const [dataEntrega, setDataEntrega] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('')
@@ -186,6 +200,88 @@ export default function VendaDetailPage() {
     }
   }
 
+  function abrirEdicaoItens() {
+    setLinhasItens(
+      (venda.venda_itens || [])
+        .filter((item) => item.produtos)
+        .map((item) => ({
+          key: crypto.randomUUID(),
+          produtoId: item.produtos.id,
+          quantidade: String(item.quantidade),
+          precoUnitario: Number(item.preco_unitario),
+        })),
+    )
+    setDescontoItens(String(venda.desconto || 0))
+    setEditandoItens(true)
+  }
+
+  function atualizarLinhaItem(key, campo, valor) {
+    setLinhasItens((atual) =>
+      atual.map((l) => {
+        if (l.key !== key) return l
+        if (campo === 'produtoId') {
+          const produto = produtosDisponiveis.find((p) => p.id === valor)
+          return { ...l, produtoId: valor, precoUnitario: produto ? Number(produto.preco_venda) : l.precoUnitario }
+        }
+        return { ...l, [campo]: valor }
+      }),
+    )
+  }
+
+  function removerLinhaItem(key) {
+    setLinhasItens((atual) => (atual.length > 1 ? atual.filter((l) => l.key !== key) : atual))
+  }
+
+  const itensValidosEdicao = useMemo(
+    () =>
+      linhasItens
+        .filter((l) => l.produtoId && Number(l.quantidade) > 0)
+        .map((l) => ({
+          produto: produtosDisponiveis.find((p) => p.id === l.produtoId),
+          quantidade: Number(l.quantidade),
+          precoUnitario: l.precoUnitario,
+        }))
+        .filter((item) => item.produto),
+    [linhasItens, produtosDisponiveis],
+  )
+
+  const subtotalEdicao = itensValidosEdicao.reduce(
+    (soma, item) => soma + Number(item.precoUnitario) * item.quantidade,
+    0,
+  )
+  const totalEdicao = Math.max(subtotalEdicao - (Number(descontoItens) || 0), 0) + Number(venda?.custo_entrega || 0)
+
+  async function handleSalvarItens() {
+    if (itensValidosEdicao.length === 0) {
+      showToast('Escolha ao menos um produto e a quantidade.')
+      return
+    }
+    setSalvandoItens(true)
+    try {
+      await atualizarItensVenda({
+        vendaId: id,
+        itens: itensValidosEdicao.map((item) => ({
+          produtoId: item.produto.id,
+          quantidade: item.quantidade,
+          precoUnitario: item.precoUnitario,
+        })),
+        desconto: Number(descontoItens) || 0,
+      })
+      const atualizado = await getVenda(id)
+      setVenda(atualizado)
+      setEditandoItens(false)
+      showToast('Itens do pedido atualizados! ✅')
+    } catch (err) {
+      if (err?.message?.includes('Estoque insuficiente')) {
+        showToast(err.message)
+      } else {
+        showToast('Não deu para atualizar os itens. Tente de novo.')
+      }
+    } finally {
+      setSalvandoItens(false)
+    }
+  }
+
   async function handleCancelarVenda() {
     setCancelando(true)
     try {
@@ -230,13 +326,6 @@ export default function VendaDetailPage() {
             className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:bg-white/20"
           >
             <Receipt size={20} />
-          </button>
-          <button
-            onClick={() => navigate(`/pedidos/${id}/pdf`)}
-            aria-label="Exportar PDF"
-            className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center active:bg-white/20"
-          >
-            <Printer size={20} />
           </button>
         </div>
       }
@@ -297,28 +386,132 @@ export default function VendaDetailPage() {
         )}
 
         <Card className="flex flex-col gap-3">
-          <h3 className="font-semibold">Itens</h3>
-          <div className="flex flex-col gap-1.5">
-            {venda.venda_itens.map((item, i) => (
-              <div key={i} className="flex justify-between text-sm">
-                <span className="text-[var(--color-brown-mid)]">
-                  {formatQuantidadeProduto(item.quantidade, item.produtos?.rendimento_unidade_medida)}{' '}
-                  {item.produtos?.nome || 'Produto removido'}
-                </span>
-                <span>{formatCurrency(Number(item.preco_unitario) * item.quantidade)}</span>
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold">Itens</h3>
+            {!editandoItens && (
+              <button
+                type="button"
+                onClick={abrirEdicaoItens}
+                aria-label="Editar itens"
+                className="w-9 h-9 rounded-full bg-[var(--color-beige)]/60 flex items-center justify-center active:bg-[var(--color-beige)]"
+              >
+                <Pencil size={16} />
+              </button>
+            )}
+          </div>
+
+          {editandoItens ? (
+            <>
+              {linhasItens.map((linha) => {
+                const produtoLinha = produtosDisponiveis.find((p) => p.id === linha.produtoId)
+                const medido = produtoLinha && produtoLinha.rendimento_unidade_medida !== 'unidade'
+                return (
+                  <div key={linha.key} className="flex gap-2 items-center">
+                    <select
+                      value={linha.produtoId}
+                      onChange={(e) => atualizarLinhaItem(linha.key, 'produtoId', e.target.value)}
+                      className="flex-1 min-w-0 min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-3 outline-none focus:border-[var(--color-rose)] bg-white"
+                    >
+                      <option value="">Escolha o produto</option>
+                      {produtosVendaveis.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.nome} ({formatCurrency(p.preco_venda)}
+                          {p.rendimento_unidade_medida !== 'unidade' ? `/${p.rendimento_unidade_medida}` : ''})
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      inputMode={medido ? 'decimal' : 'numeric'}
+                      step={medido ? '0.001' : '1'}
+                      min={medido ? '0.001' : '1'}
+                      value={linha.quantidade}
+                      onChange={(e) => atualizarLinhaItem(linha.key, 'quantidade', e.target.value)}
+                      placeholder={medido ? produtoLinha.rendimento_unidade_medida : 'Qtd.'}
+                      className="w-16 min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-3 outline-none focus:border-[var(--color-rose)]"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removerLinhaItem(linha.key)}
+                      aria-label="Remover produto"
+                      className="w-11 h-11 shrink-0 rounded-2xl bg-[var(--color-beige)]/60 flex items-center justify-center active:bg-[var(--color-beige)]"
+                    >
+                      <X size={18} />
+                    </button>
+                  </div>
+                )
+              })}
+
+              <button
+                type="button"
+                onClick={() =>
+                  setLinhasItens((atual) => [
+                    ...atual,
+                    { key: crypto.randomUUID(), produtoId: '', quantidade: '1', precoUnitario: 0 },
+                  ])
+                }
+                className="flex items-center justify-center gap-2 min-h-[44px] rounded-2xl border-2 border-dashed border-[var(--color-rose)] text-[var(--color-brown-mid)] font-semibold"
+              >
+                <Plus size={18} /> Adicionar produto
+              </button>
+
+              <label className="flex flex-col gap-1">
+                <span className="text-sm font-semibold">Desconto (R$)</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  step="0.01"
+                  min="0"
+                  value={descontoItens}
+                  onChange={(e) => setDescontoItens(e.target.value)}
+                  className="min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-4 outline-none focus:border-[var(--color-rose)]"
+                />
+              </label>
+
+              <div className="flex justify-between items-center pt-2 border-t border-[var(--color-beige)]">
+                <span className="font-semibold">Novo total</span>
+                <span className="font-display text-xl font-semibold">{formatCurrency(totalEdicao)}</span>
               </div>
-            ))}
-          </div>
-          {Number(venda.desconto) > 0 && (
-            <div className="flex justify-between text-sm pt-2 border-t border-[var(--color-beige)]">
-              <span className="text-[var(--color-alert)]">Desconto</span>
-              <span className="text-[var(--color-alert)]">-{formatCurrency(venda.desconto)}</span>
-            </div>
+              {Number(venda.custo_entrega) > 0 && (
+                <p className="text-xs text-[var(--color-brown-mid)]">
+                  Já inclui o frete de {formatCurrency(venda.custo_entrega)}.
+                </p>
+              )}
+
+              <div className="flex gap-2">
+                <Button type="button" variant="outline" onClick={() => setEditandoItens(false)} className="flex-1">
+                  Cancelar
+                </Button>
+                <Button type="button" onClick={handleSalvarItens} disabled={salvandoItens} className="flex-1">
+                  {salvandoItens ? 'Salvando...' : 'Salvar itens'}
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex flex-col gap-1.5">
+                {venda.venda_itens.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm">
+                    <span className="text-[var(--color-brown-mid)]">
+                      {formatQuantidadeProduto(item.quantidade, item.produtos?.rendimento_unidade_medida)}{' '}
+                      {item.produtos?.nome || 'Produto removido'}
+                    </span>
+                    <span>{formatCurrency(Number(item.preco_unitario) * item.quantidade)}</span>
+                  </div>
+                ))}
+              </div>
+              {Number(venda.desconto) > 0 && (
+                <div className="flex justify-between text-sm pt-2 border-t border-[var(--color-beige)]">
+                  <span className="text-[var(--color-alert)]">Desconto</span>
+                  <span className="text-[var(--color-alert)]">-{formatCurrency(venda.desconto)}</span>
+                </div>
+              )}
+              <div className="flex justify-between items-center pt-2 border-t border-[var(--color-beige)]">
+                <span className="font-semibold">Total</span>
+                <span className="font-display text-xl font-semibold">{formatCurrency(venda.valor_total)}</span>
+              </div>
+            </>
           )}
-          <div className="flex justify-between items-center pt-2 border-t border-[var(--color-beige)]">
-            <span className="font-semibold">Total</span>
-            <span className="font-display text-xl font-semibold">{formatCurrency(venda.valor_total)}</span>
-          </div>
         </Card>
 
         <InsumosNecessariosCard linhas={insumosNecessarios} carregando={carregandoInsumos} />

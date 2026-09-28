@@ -79,8 +79,8 @@ export default function ClienteForm({ clienteInicial, valoresIniciais, onSalvo, 
     e.preventDefault()
     if (!campos.nome.trim()) return showToast('Dê um nome para o cliente.')
     if (!campos.origem) return showToast('Escolha por onde o cliente chegou.')
-    if (!campos.cep.trim() || !campos.rua.trim() || !campos.numero.trim()) {
-      return showToast('Preencha CEP, rua e número do endereço.')
+    if (!campos.rua.trim() || !campos.numero.trim()) {
+      return showToast('Preencha rua e número do endereço.')
     }
     if (!campos.telefone.trim()) return showToast('Preencha o telefone do cliente.')
 
@@ -193,7 +193,7 @@ export default function ClienteForm({ clienteInicial, valoresIniciais, onSalvo, 
       </label>
 
       <label className="flex flex-col gap-1">
-        <span className="text-sm font-semibold">CEP</span>
+        <span className="text-sm font-semibold">CEP (opcional)</span>
         <input
           value={campos.cep}
           onChange={(e) => set('cep', e.target.value)}
