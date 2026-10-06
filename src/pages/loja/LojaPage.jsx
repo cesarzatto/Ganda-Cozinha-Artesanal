@@ -6,6 +6,7 @@ import { useToast } from '../../components/ToastProvider.jsx'
 import { formatCurrency, formatQuantidadeProduto } from '../../lib/format.js'
 import { linkWhatsAppPedido } from '../../lib/loja.js'
 import { enderecoCompletoCliente } from '../../lib/frete.js'
+import { buscarEnderecoPorCep } from '../../lib/cep.js'
 import { FORMAS_PAGAMENTO } from '../../lib/formasPagamento.js'
 import logo from '../../assets/logo-ganda-badge.png'
 
@@ -82,7 +83,12 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
   const [buscandoCliente, setBuscandoCliente] = useState(false)
   const [clienteEncontrado, setClienteEncontrado] = useState(null)
   const [usarEnderecoCadastrado, setUsarEnderecoCadastrado] = useState(true)
-  const [enderecoManual, setEnderecoManual] = useState('')
+  const [cep, setCep] = useState('')
+  const [rua, setRua] = useState('')
+  const [numero, setNumero] = useState('')
+  const [complemento, setComplemento] = useState('')
+  const [buscandoCep, setBuscandoCep] = useState(false)
+  const [cidadeUfCep, setCidadeUfCep] = useState('')
   const [salvarComoPrincipal, setSalvarComoPrincipal] = useState(false)
 
   const enderecoCadastrado = useMemo(
@@ -116,8 +122,30 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
     }
   }, [telefone])
 
+  // Endereço digitado pela pessoa, no mesmo formato do endereço de cliente
+  // cadastrado ("rua, número - complemento - CEP").
+  const enderecoManual = rua.trim() && numero.trim()
+    ? enderecoCompletoCliente({ rua: rua.trim(), numero: numero.trim(), complemento: complemento.trim(), cep: cep.trim() })
+    : ''
+
   const enderecoFinal =
-    clienteEncontrado && enderecoCadastrado && usarEnderecoCadastrado ? enderecoCadastrado : enderecoManual.trim()
+    clienteEncontrado && enderecoCadastrado && usarEnderecoCadastrado ? enderecoCadastrado : enderecoManual
+
+  async function handleCepBlur() {
+    setCidadeUfCep('')
+    if (cep.replace(/\D/g, '').length !== 8) return
+    setBuscandoCep(true)
+    try {
+      const endereco = await buscarEnderecoPorCep(cep)
+      if (!endereco) return showToast('CEP não encontrado. Pode preencher a rua na mão.')
+      if (endereco.rua) setRua(endereco.rua)
+      setCidadeUfCep(endereco.cidadeUf)
+    } catch {
+      // sem internet ou ViaCEP fora do ar: a pessoa preenche na mão
+    } finally {
+      setBuscandoCep(false)
+    }
+  }
 
   const precisaDigitarEndereco = !clienteEncontrado || !enderecoCadastrado || !usarEnderecoCadastrado
 
@@ -182,7 +210,7 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
     if (!nome.trim()) return showToast('Escreva seu nome.')
     if (!telefone.trim()) return showToast('Escreva seu telefone.')
     if (!formaPagamento) return showToast('Escolha como vai pagar.')
-    if (!enderecoFinal) return showToast('Confirme o endereço de entrega.')
+    if (!enderecoFinal) return showToast('Preencha a rua e o número do endereço de entrega.')
 
     setEnviando(true)
     try {
@@ -199,6 +227,7 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
         observacao: promoAtiva ? `Promoção 10+1 no Pix aplicada (brinde: ${produtoGratis.nome})` : null,
         formaPagamento,
         endereco: enderecoFinal,
+        enderecoEstruturado: precisaDigitarEndereco ? { cep, rua, numero, complemento } : null,
         salvarEnderecoPrincipal: !clienteEncontrado && salvarComoPrincipal,
       })
 
@@ -323,15 +352,46 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
           )}
 
           {!buscandoCliente && precisaDigitarEndereco && (
-            <label className="flex flex-col gap-1">
-              <span className="text-sm font-semibold">Endereço de entrega</span>
-              <input
-                value={enderecoManual}
-                onChange={(e) => setEnderecoManual(e.target.value)}
-                placeholder="Rua, número, bairro, cidade"
-                className={inputClass}
-              />
-            </label>
+            <div className="flex flex-col gap-3">
+              <span className="text-sm font-semibold -mb-1">Endereço de entrega</span>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-[var(--color-brown-mid)]">CEP (preenche a rua sozinho)</span>
+                <input
+                  value={cep}
+                  onChange={(e) => setCep(e.target.value)}
+                  onBlur={handleCepBlur}
+                  inputMode="numeric"
+                  placeholder="00000-000"
+                  className={inputClass}
+                />
+                {buscandoCep && <span className="text-xs text-[var(--color-brown-mid)]">Buscando endereço...</span>}
+                {cidadeUfCep && <span className="text-xs text-[var(--color-brown-mid)]">{cidadeUfCep}</span>}
+              </label>
+              <label className="flex flex-col gap-1">
+                <span className="text-xs text-[var(--color-brown-mid)]">Rua e bairro</span>
+                <input
+                  value={rua}
+                  onChange={(e) => setRua(e.target.value)}
+                  placeholder="Nome da rua e bairro"
+                  className={inputClass}
+                />
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-[var(--color-brown-mid)]">Número</span>
+                  <input value={numero} onChange={(e) => setNumero(e.target.value)} placeholder="Nº" className={inputClass} />
+                </label>
+                <label className="flex flex-col gap-1">
+                  <span className="text-xs text-[var(--color-brown-mid)]">Complemento (opcional)</span>
+                  <input
+                    value={complemento}
+                    onChange={(e) => setComplemento(e.target.value)}
+                    placeholder="Apto, bloco..."
+                    className={inputClass}
+                  />
+                </label>
+              </div>
+            </div>
           )}
 
           {!buscandoCliente && !clienteEncontrado && telefone.replace(/\D/g, '').length >= 10 && (

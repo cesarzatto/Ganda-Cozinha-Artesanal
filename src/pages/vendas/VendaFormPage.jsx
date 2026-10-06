@@ -45,7 +45,7 @@ export default function VendaFormPage() {
   const [ifood, setIfood] = useState(false)
   const [nomeIfood, setNomeIfood] = useState('')
   const [linhas, setLinhas] = useState([novaLinha()])
-  const [desconto, setDesconto] = useState('0')
+  const [desconto, setDesconto] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('')
   const [pago, setPago] = useState(true)
   const [semValor, setSemValor] = useState(false)
@@ -504,6 +504,7 @@ export default function VendaFormPage() {
               min="0"
               value={desconto}
               onChange={(e) => setDesconto(e.target.value)}
+              placeholder="0,00"
               className="min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-4 outline-none focus:border-[var(--color-rose)]"
             />
           </label>

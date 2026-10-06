@@ -76,16 +76,36 @@ function combinaComBusca(pedido, busca) {
   return numero.includes(termo) || titulo.includes(termo) || cliente.includes(termo)
 }
 
+const FILTROS_PAGAMENTO = [
+  { value: 'todos', label: 'Todos' },
+  { value: 'nao_pagos', label: 'Não pagos' },
+  { value: 'pagos', label: 'Pagos' },
+]
+
 function AbaVendas({ busca }) {
   const navigate = useNavigate()
   const { vendas, loading } = useVendas()
   const [filtro, setFiltro] = useState('mes')
+  const [filtroPagamento, setFiltroPagamento] = useState('todos')
 
   const vendasFiltradas = useMemo(
-    () => vendas.filter((v) => dentroDoPeriodo(v.data_venda, filtro) && combinaComBusca(v, busca)),
-    [vendas, filtro, busca],
+    () =>
+      vendas.filter(
+        (v) =>
+          dentroDoPeriodo(v.data_venda, filtro) &&
+          combinaComBusca(v, busca) &&
+          (filtroPagamento === 'todos' || (filtroPagamento === 'pagos' ? v.pago : !v.pago)),
+      ),
+    [vendas, filtro, busca, filtroPagamento],
   )
   const totalFiltrado = vendasFiltradas.reduce((soma, v) => soma + Number(v.valor_total), 0)
+
+  // Cobrança: ao olhar quem não pagou, o mais útil é ver todo o histórico,
+  // não só o mês atual.
+  function escolherPagamento(valor) {
+    setFiltroPagamento(valor)
+    if (valor === 'nao_pagos') setFiltro('tudo')
+  }
   const grupos = agruparPorMes(vendasFiltradas)
 
   return (
@@ -106,9 +126,27 @@ function AbaVendas({ busca }) {
         ))}
       </div>
 
+      <div className="grid grid-cols-3 gap-2">
+        {FILTROS_PAGAMENTO.map(({ value, label }) => (
+          <button
+            key={value}
+            onClick={() => escolherPagamento(value)}
+            className={`min-h-[40px] rounded-2xl text-sm font-semibold border-2 ${
+              filtroPagamento === value
+                ? 'border-[var(--color-brown-dark)] bg-[var(--color-beige)]/60'
+                : 'border-[var(--color-beige)] text-[var(--color-brown-mid)] bg-white'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
       {!loading && (
         <p className="text-sm text-[var(--color-brown-mid)] -mt-2">
-          {vendasFiltradas.length} venda{vendasFiltradas.length === 1 ? '' : 's'} · {formatCurrency(totalFiltrado)}
+          {vendasFiltradas.length} venda{vendasFiltradas.length === 1 ? '' : 's'} ·{' '}
+          {filtroPagamento === 'nao_pagos' ? 'A receber: ' : ''}
+          {formatCurrency(totalFiltrado)}
         </p>
       )}
 

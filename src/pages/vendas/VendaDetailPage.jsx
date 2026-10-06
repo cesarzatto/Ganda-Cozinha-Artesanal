@@ -24,6 +24,7 @@ import InsumosNecessariosCard from '../../components/InsumosNecessariosCard.jsx'
 import { useToast } from '../../components/ToastProvider.jsx'
 import {
   getVenda,
+  getEnderecoEstruturadoVenda,
   atualizarEntregaVenda,
   atualizarItensVenda,
   marcarEntregaVenda,
@@ -43,6 +44,7 @@ import {
   ENDERECO_ORIGEM,
   calcularCustoEntrega,
   enderecoCompletoCliente,
+  separarEndereco,
   linkGoogleMaps,
 } from '../../lib/frete.js'
 
@@ -72,7 +74,7 @@ export default function VendaDetailPage() {
 
   const [editandoItens, setEditandoItens] = useState(false)
   const [linhasItens, setLinhasItens] = useState([])
-  const [descontoItens, setDescontoItens] = useState('0')
+  const [descontoItens, setDescontoItens] = useState('')
   const [salvandoItens, setSalvandoItens] = useState(false)
 
   const [dataEntrega, setDataEntrega] = useState('')
@@ -87,6 +89,7 @@ export default function VendaDetailPage() {
   const [custoEstabelecimento, setCustoEstabelecimento] = useState('')
   const [enderecoManual, setEnderecoManual] = useState('')
   const [novoClienteAberto, setNovoClienteAberto] = useState(false)
+  const [enderecoEstruturado, setEnderecoEstruturado] = useState(null)
   const [confirmarCancelamento, setConfirmarCancelamento] = useState(false)
   const [cancelando, setCancelando] = useState(false)
 
@@ -129,6 +132,10 @@ export default function VendaDetailPage() {
     if (tipoFrete !== 'estabelecimento' || custoEntregaCalculado <= 0) return
     setCustoEstabelecimento((atual) => atual || custoEntregaCalculado.toFixed(2))
   }, [tipoFrete, custoEntregaCalculado])
+
+  useEffect(() => {
+    getEnderecoEstruturadoVenda(id).then(setEnderecoEstruturado)
+  }, [id])
 
   useEffect(() => {
     let ativo = true
@@ -211,7 +218,7 @@ export default function VendaDetailPage() {
           precoUnitario: Number(item.preco_unitario),
         })),
     )
-    setDescontoItens(String(venda.desconto || 0))
+    setDescontoItens(Number(venda.desconto) > 0 ? String(venda.desconto) : '')
     setEditandoItens(true)
   }
 
@@ -464,6 +471,7 @@ export default function VendaDetailPage() {
                   min="0"
                   value={descontoItens}
                   onChange={(e) => setDescontoItens(e.target.value)}
+                  placeholder="0,00"
                   className="min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-4 outline-none focus:border-[var(--color-rose)]"
                 />
               </label>
@@ -746,7 +754,7 @@ export default function VendaDetailPage() {
         valoresIniciais={{
           nome: venda.titulo || '',
           telefone: venda.telefone_pedido || '',
-          rua: venda.endereco_entrega || '',
+          ...(enderecoEstruturado || separarEndereco(venda.endereco_entrega)),
         }}
         onCriado={handleClienteCadastrado}
         onFechar={() => setNovoClienteAberto(false)}

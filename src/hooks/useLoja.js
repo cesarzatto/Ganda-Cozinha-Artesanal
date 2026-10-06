@@ -23,6 +23,7 @@ export async function registrarPedidoLoja({
   valorTotal,
   formaPagamento,
   endereco,
+  enderecoEstruturado,
   salvarEnderecoPrincipal,
   desconto,
   observacao,
@@ -56,6 +57,22 @@ export async function registrarPedidoLoja({
     p_salvar_endereco_principal: Boolean(salvarEnderecoPrincipal),
   })
   if (error) throw error
+
+  // Guarda o endereço separado em campos pra já cair certinho no cadastro
+  // do cliente depois. Se falhar (ex: migração ainda não aplicada), o
+  // pedido já foi registrado — não pode virar erro pro cliente.
+  if (enderecoEstruturado) {
+    await supabase
+      .from('vendas')
+      .update({
+        endereco_cep: enderecoEstruturado.cep || null,
+        endereco_rua: enderecoEstruturado.rua || null,
+        endereco_numero: enderecoEstruturado.numero || null,
+        endereco_complemento: enderecoEstruturado.complemento || null,
+      })
+      .eq('id', data)
+      .then(() => {}, () => {})
+  }
 
   return { vendaId: data, clienteEncontrado: Boolean(clienteId) }
 }

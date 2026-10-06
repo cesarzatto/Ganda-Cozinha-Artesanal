@@ -179,6 +179,10 @@ create table if not exists vendas (
   telefone_pedido text,
   notinha_impressa boolean not null default false,
   salvar_endereco_principal boolean not null default false,
+  endereco_cep text,
+  endereco_rua text,
+  endereco_numero text,
+  endereco_complemento text,
   created_at timestamptz not null default now()
 );
 

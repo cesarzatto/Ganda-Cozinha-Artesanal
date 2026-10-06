@@ -140,6 +140,23 @@ export async function getVenda(id) {
   return data
 }
 
+// Colunas separadas do endereço (migracao_v25). Busca à parte, e não no
+// SELECT_VENDA, pra tela do pedido não quebrar se a migração não rodou.
+export async function getEnderecoEstruturadoVenda(id) {
+  const { data, error } = await supabase
+    .from('vendas')
+    .select('endereco_cep, endereco_rua, endereco_numero, endereco_complemento')
+    .eq('id', id)
+    .single()
+  if (error || !data?.endereco_rua) return null
+  return {
+    cep: data.endereco_cep || '',
+    rua: data.endereco_rua || '',
+    numero: data.endereco_numero || '',
+    complemento: data.endereco_complemento || '',
+  }
+}
+
 function mapItens(itens) {
   return itens.map((item) => ({
     produto_id: item.produtoId,

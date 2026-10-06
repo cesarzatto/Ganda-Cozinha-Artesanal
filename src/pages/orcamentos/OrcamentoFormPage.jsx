@@ -55,7 +55,7 @@ export default function OrcamentoFormPage() {
   const [titulo, setTitulo] = useState('')
   const [clienteId, setClienteId] = useState('')
   const [linhas, setLinhas] = useState([novaLinha()])
-  const [desconto, setDesconto] = useState('0')
+  const [desconto, setDesconto] = useState('')
   const [formaContato, setFormaContato] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('')
   const [pago, setPago] = useState(false)
@@ -128,7 +128,7 @@ export default function OrcamentoFormPage() {
               }))
             : [novaLinha()],
         )
-        setDesconto(String(v.desconto ?? '0'))
+        setDesconto(Number(v.desconto) > 0 ? String(v.desconto) : '')
         setFormaContato(v.forma_contato || '')
         setFormaPagamento(v.forma_pagamento || '')
         setPago(v.pago ?? false)
@@ -561,6 +561,7 @@ export default function OrcamentoFormPage() {
               min="0"
               value={desconto}
               onChange={(e) => setDesconto(e.target.value)}
+              placeholder="0,00"
               className="min-h-[48px] rounded-2xl border-2 border-[var(--color-beige)] px-4 outline-none focus:border-[var(--color-rose)]"
             />
           </label>

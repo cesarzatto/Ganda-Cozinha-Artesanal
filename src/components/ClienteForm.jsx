@@ -4,6 +4,7 @@ import Button from './Button.jsx'
 import { FORMAS_CONTATO } from '../lib/formasContato.js'
 import { useToast } from './ToastProvider.jsx'
 import { salvarCliente } from '../hooks/useClientes.js'
+import { buscarEnderecoPorCep } from '../lib/cep.js'
 
 const ESTADO_INICIAL = {
   nome: '',
@@ -53,21 +54,18 @@ export default function ClienteForm({ clienteInicial, valoresIniciais, onSalvo, 
   // campo perde o foco com 8 dígitos — preenche a rua automaticamente,
   // deixando só número e complemento pra digitar.
   async function handleCepBlur() {
-    const cepLimpo = campos.cep.replace(/\D/g, '')
     setCidadeUfCep('')
-    if (cepLimpo.length !== 8) return
+    if (campos.cep.replace(/\D/g, '').length !== 8) return
 
     setBuscandoCep(true)
     try {
-      const res = await fetch(`https://viacep.com.br/ws/${cepLimpo}/json/`)
-      const data = await res.json()
-      if (data.erro) {
+      const endereco = await buscarEnderecoPorCep(campos.cep)
+      if (!endereco) {
         showToast('CEP não encontrado.')
         return
       }
-      const rua = [data.logradouro, data.bairro].filter(Boolean).join(' - ')
-      if (rua) set('rua', rua)
-      if (data.localidade && data.uf) setCidadeUfCep(`${data.localidade}/${data.uf}`)
+      if (endereco.rua) set('rua', endereco.rua)
+      setCidadeUfCep(endereco.cidadeUf)
     } catch {
       // sem internet ou API fora do ar: deixa a pessoa preencher na mão, sem travar o cadastro
     } finally {
