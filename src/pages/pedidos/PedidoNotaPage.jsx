@@ -15,9 +15,9 @@ const PAPEIS = [
 function lerPapelSalvo() {
   try {
     const salvo = localStorage.getItem('notinha_papel')
-    return PAPEIS.some((p) => p.value === salvo) ? salvo : '58'
+    return PAPEIS.some((p) => p.value === salvo) ? salvo : '80'
   } catch {
-    return '58'
+    return '80'
   }
 }
 
