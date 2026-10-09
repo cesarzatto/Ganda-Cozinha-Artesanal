@@ -20,6 +20,8 @@ import OrcamentoFormPage from './pages/orcamentos/OrcamentoFormPage.jsx'
 import PedidosPage from './pages/pedidos/PedidosPage.jsx'
 import PedidoPdfPage from './pages/pedidos/PedidoPdfPage.jsx'
 import PedidoNotaPage from './pages/pedidos/PedidoNotaPage.jsx'
+import EncomendaFormPage from './pages/encomendas/EncomendaFormPage.jsx'
+import EncomendaNotaPage from './pages/encomendas/EncomendaNotaPage.jsx'
 import FinanceiroPage from './pages/financeiro/FinanceiroPage.jsx'
 import LojaPage from './pages/loja/LojaPage.jsx'
 
@@ -65,6 +67,10 @@ export default function App() {
 
           <Route path="/vendas/novo" element={<VendaFormPage />} />
           <Route path="/vendas/:id" element={<VendaDetailPage />} />
+
+          <Route path="/encomendas/novo" element={<EncomendaFormPage />} />
+          <Route path="/encomendas/:id" element={<EncomendaFormPage />} />
+          <Route path="/encomendas/:id/nota" element={<EncomendaNotaPage />} />
 
           <Route path="/orcamentos/novo" element={<OrcamentoFormPage />} />
           <Route path="/orcamentos/:id" element={<OrcamentoFormPage />} />

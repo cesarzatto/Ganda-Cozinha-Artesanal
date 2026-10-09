@@ -5,6 +5,7 @@ import {
   ShoppingBag,
   Truck,
   FileText,
+  ClipboardList,
   Search,
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -18,7 +19,8 @@ import Card from '../../components/Card.jsx'
 import EmptyState from '../../components/EmptyState.jsx'
 import PedidoSemClienteAlertBanner from '../../components/PedidoSemClienteAlertBanner.jsx'
 import { useVendas, useOrcamentos, useEntregasPendentes } from '../../hooks/useVendas.js'
-import { formatCurrency, formatDate, formatMonthLabel } from '../../lib/format.js'
+import { useEncomendas } from '../../hooks/useEncomendas.js'
+import { formatCurrency, formatDate, formatMonthLabel, formatQuantidade } from '../../lib/format.js'
 import { FILTROS_PERIODO, dentroDoPeriodo } from '../../lib/periodos.js'
 import { urgenciaEntrega } from '../../lib/entregas.js'
 
@@ -26,6 +28,7 @@ const ABAS = [
   { value: 'vendas', label: 'Vendas' },
   { value: 'orcamentos', label: 'Orçamentos' },
   { value: 'entregas', label: 'Entregas' },
+  { value: 'encomendas', label: 'Encomendas' },
 ]
 
 const ICONE_CONTATO = {
@@ -266,6 +269,77 @@ function AbaOrcamentos({ busca }) {
   )
 }
 
+function AbaEncomendas({ busca }) {
+  const navigate = useNavigate()
+  const { encomendas, loading } = useEncomendas()
+
+  const filtradas = useMemo(() => {
+    if (!busca.trim()) return encomendas
+    const termo = busca.trim().toLowerCase()
+    return encomendas.filter(
+      (e) =>
+        String(e.numero).includes(termo) ||
+        (e.clientes?.nome || e.cliente_nome).toLowerCase().includes(termo) ||
+        e.itens.some((item) => item.descricao.toLowerCase().includes(termo)),
+    )
+  }, [encomendas, busca])
+
+  return (
+    <div className="flex flex-col gap-3">
+      {!loading && filtradas.length === 0 && (
+        <EmptyState
+          icon={ClipboardList}
+          title={busca ? 'Nenhuma encomenda encontrada' : 'Nenhuma encomenda ainda'}
+          description={!busca ? 'Toque no botão + para anotar uma encomenda com itens personalizados.' : undefined}
+        />
+      )}
+
+      {filtradas.map((encomenda) => (
+        <Card
+          key={encomenda.id}
+          as="button"
+          onClick={() => navigate(`/encomendas/${encomenda.id}`)}
+          className="flex items-start gap-3 text-left w-full active:scale-[0.99] transition-transform"
+        >
+          <div className="flex-1 min-w-0">
+            <p className="font-semibold truncate">
+              #{encomenda.numero} · {encomenda.clientes?.nome || encomenda.cliente_nome}
+            </p>
+            <p className="text-sm text-[var(--color-brown-mid)]">
+              {encomenda.itens.map((item) => `${formatQuantidade(item.quantidade)}x ${item.descricao}`).join(', ')}
+            </p>
+            <p className="text-xs text-[var(--color-brown-mid)] mt-0.5">
+              {encomenda.data_entrega ? `Entrega em ${formatDate(encomenda.data_entrega)}` : formatDate(encomenda.data_encomenda)}
+            </p>
+            <div className="mt-1 flex items-center gap-1.5 flex-wrap">
+              <span
+                className={`inline-block rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+                  encomenda.pago
+                    ? 'bg-[var(--color-success)]/10 text-[var(--color-success)]'
+                    : 'bg-[var(--color-alert)]/10 text-[var(--color-alert)]'
+                }`}
+              >
+                {encomenda.pago ? 'Pago' : 'Não pago'}
+              </span>
+              {encomenda.entregue && (
+                <span className="inline-block rounded-full bg-[var(--color-beige)] text-[var(--color-brown-dark)] px-2 py-0.5 text-[11px] font-semibold">
+                  Entregue
+                </span>
+              )}
+              {!encomenda.notinha_impressa && (
+                <span className="inline-block rounded-full bg-[var(--color-beige)] text-[var(--color-brown-dark)] px-2 py-0.5 text-[11px] font-semibold">
+                  Notinha pendente
+                </span>
+              )}
+            </div>
+          </div>
+          <span className="font-display font-semibold shrink-0">{formatCurrency(encomenda.valor_total)}</span>
+        </Card>
+      ))}
+    </div>
+  )
+}
+
 function AbaEntregas({ busca }) {
   const navigate = useNavigate()
   const { entregas, loading } = useEntregasPendentes()
@@ -349,19 +423,20 @@ export default function PedidosPage() {
 
   function irParaNovo() {
     if (abaAtiva === 'orcamentos') navigate('/orcamentos/novo')
+    else if (abaAtiva === 'encomendas') navigate('/encomendas/novo')
     else navigate('/vendas/novo')
   }
 
   return (
-    <Layout title="Pedidos" subtitle="Vendas, orçamentos e entregas">
+    <Layout title="Pedidos" subtitle="Vendas, orçamentos, entregas e encomendas">
       <PedidoSemClienteAlertBanner />
 
-      <div className="grid grid-cols-3 gap-2 mb-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
         {ABAS.map(({ value, label }) => (
           <button
             key={value}
             onClick={() => trocarAba(value)}
-            className={`min-h-[44px] rounded-2xl text-sm font-semibold border-2 ${
+            className={`min-h-[44px] rounded-2xl text-sm font-semibold border-2 px-1 ${
               abaAtiva === value
                 ? 'border-[var(--color-brown-dark)] bg-[var(--color-beige)]/60'
                 : 'border-[var(--color-beige)] text-[var(--color-brown-mid)] bg-white'
@@ -385,11 +460,12 @@ export default function PedidosPage() {
       {abaAtiva === 'vendas' && <AbaVendas busca={busca} />}
       {abaAtiva === 'orcamentos' && <AbaOrcamentos busca={busca} />}
       {abaAtiva === 'entregas' && <AbaEntregas busca={busca} />}
+      {abaAtiva === 'encomendas' && <AbaEncomendas busca={busca} />}
 
       {abaAtiva !== 'entregas' && (
         <button
           onClick={irParaNovo}
-          aria-label={abaAtiva === 'orcamentos' ? 'Novo orçamento' : 'Nova venda'}
+          aria-label={abaAtiva === 'orcamentos' ? 'Novo orçamento' : abaAtiva === 'encomendas' ? 'Nova encomenda' : 'Nova venda'}
           className="fixed bottom-6 right-5 w-14 h-14 rounded-full bg-[var(--color-brown-dark)] text-white shadow-lg flex items-center justify-center active:bg-[var(--color-brown-mid)]"
         >
           <Plus size={26} />
