@@ -11,8 +11,6 @@ import {
   AlertTriangle,
   Trash2,
   Receipt,
-  ChefHat,
-  Printer,
   Pencil,
   Plus,
   X,
@@ -39,7 +37,6 @@ import { useProdutos } from '../../hooks/useProdutos.js'
 import { useInsumos } from '../../hooks/useInsumos.js'
 import { useInsumosNecessarios } from '../../hooks/useInsumosNecessarios.js'
 import { formatCurrency, formatDate, formatQuantidade, formatQuantidadeProduto } from '../../lib/format.js'
-import { listarProducao } from '../../lib/producao.js'
 import { FORMAS_CONTATO } from '../../lib/formasContato.js'
 import { FORMAS_PAGAMENTO } from '../../lib/formasPagamento.js'
 import {
@@ -267,7 +264,6 @@ export default function VendaDetailPage() {
     (soma, item) => soma + Number(item.quantidade) * Number(item.valor_unitario),
     0,
   )
-  const producao = venda ? listarProducao(venda) : null
   const totalEdicao =
     Math.max(subtotalEdicao + valorEspeciais - (Number(descontoItens) || 0), 0) + Number(venda?.custo_entrega || 0)
 
@@ -549,34 +545,6 @@ export default function VendaDetailPage() {
             </>
           )}
         </Card>
-
-        {producao?.temProducao && (
-          <Card className="flex flex-col gap-3 border-2 border-[var(--color-alert)]">
-            <h3 className="font-semibold flex items-center gap-2">
-              <ChefHat size={18} className="text-[var(--color-alert)]" /> A produzir
-            </h3>
-            <div className="flex flex-col gap-1.5">
-              {producao.catalogo.map((item, i) => (
-                <div key={`cat-${i}`} className="flex justify-between text-sm gap-3">
-                  <span>{item.nome}</span>
-                  <span className="font-semibold shrink-0">
-                    {formatQuantidadeProduto(item.produzir, item.unidade)}
-                    {item.produzir < item.pedido ? ` de ${formatQuantidade(item.pedido)}` : ''}
-                  </span>
-                </div>
-              ))}
-              {producao.personalizados.map((item, i) => (
-                <div key={`per-${i}`} className="flex justify-between text-sm gap-3">
-                  <span>{item.nome} <span className="text-xs text-[var(--color-brown-mid)]">(especial)</span></span>
-                  <span className="font-semibold shrink-0">{formatQuantidade(item.produzir)}x</span>
-                </div>
-              ))}
-            </div>
-            <Button type="button" variant="outline" onClick={() => navigate(`/vendas/${id}/producao`)} className="gap-2">
-              <Printer size={18} /> Imprimir notinha de produção
-            </Button>
-          </Card>
-        )}
 
         <InsumosNecessariosCard linhas={insumosNecessarios} carregando={carregandoInsumos} />
 

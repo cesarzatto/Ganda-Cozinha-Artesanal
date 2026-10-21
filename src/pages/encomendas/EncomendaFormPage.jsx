@@ -424,7 +424,7 @@ export default function EncomendaFormPage() {
                       }`}
                     >
                       {produto.sob_demanda
-                        ? 'Produto sob encomenda: vai para a lista de produção.'
+                        ? "Produto sob encomenda: vai para a lista 'A produzir'."
                         : faltam > 0
                           ? `Estoque: ${formatQuantidade(Math.max(estoque, 0))} — faltam ${formatQuantidade(faltam)} para produzir.`
                           : `Tem em estoque (${formatQuantidade(estoque)}).`}
@@ -529,8 +529,8 @@ export default function EncomendaFormPage() {
 
       <ConfirmModal
         open={confirmarVirarPedido}
-        title="Virar pedido?"
-        description="As marmitas do cardápio baixam do estoque o que tiver — o que faltar fica na lista 'A produzir', junto com os itens especiais. Depois disso a encomenda não pode mais ser editada, só o pedido."
+        title="Virar pedido? (já está pronta)"
+        description="Use quando a encomenda já foi feita: as marmitas do cardápio baixam do estoque e o valor entra no financeiro como venda. Ela sai da lista 'A produzir' e depois só o pedido pode ser editado."
         confirmLabel={salvando ? 'Criando...' : 'Virar pedido'}
         onConfirm={handleVirarPedido}
         onCancel={() => setConfirmarVirarPedido(false)}

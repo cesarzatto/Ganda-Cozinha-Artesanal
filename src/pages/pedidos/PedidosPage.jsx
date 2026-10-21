@@ -21,7 +21,6 @@ import EmptyState from '../../components/EmptyState.jsx'
 import PedidoSemClienteAlertBanner from '../../components/PedidoSemClienteAlertBanner.jsx'
 import { useVendas, useOrcamentos, useEntregasPendentes } from '../../hooks/useVendas.js'
 import { useEncomendas } from '../../hooks/useEncomendas.js'
-import { consolidarProducao } from '../../lib/producao.js'
 import { formatCurrency, formatDate, formatMonthLabel, formatQuantidade } from '../../lib/format.js'
 import { FILTROS_PERIODO, dentroDoPeriodo } from '../../lib/periodos.js'
 import { urgenciaEntrega } from '../../lib/entregas.js'
@@ -52,12 +51,6 @@ function resumoItens(itens, personalizados = []) {
   const doCardapio = itens.map((item) => `${item.quantidade}x ${item.produtos?.nome || 'Produto removido'}`)
   const especiais = personalizados.map((item) => `${formatQuantidade(item.quantidade)}x ${item.descricao}`)
   return [...doCardapio, ...especiais].join(', ')
-}
-
-function temProducao(venda) {
-  return (
-    (venda.itens_personalizados || []).length > 0 || (venda.venda_itens || []).some((i) => Number(i.qtd_produzir) > 0)
-  )
 }
 
 // Busca sem diferenciar maiúsculas/acentos ("jose" acha "José").
@@ -231,11 +224,6 @@ function AbaVendas({ busca }) {
                         {venda.pedido_online && !venda.cliente_id && (
                           <span className="inline-block rounded-full bg-[var(--color-alert)]/10 text-[var(--color-alert)] px-2 py-0.5 text-[11px] font-semibold">
                             Cadastrar cliente
-                          </span>
-                        )}
-                        {temProducao(venda) && (
-                          <span className="inline-block rounded-full bg-[var(--color-alert)]/10 text-[var(--color-alert)] px-2 py-0.5 text-[11px] font-semibold">
-                            A produzir
                           </span>
                         )}
                         {!venda.notinha_impressa && (
@@ -448,9 +436,8 @@ export default function PedidosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const abaAtiva = ABAS.some((a) => a.value === searchParams.get('aba')) ? searchParams.get('aba') : 'vendas'
   const [busca, setBusca] = useState('')
-  const { vendas: todasAsVendas } = useVendas()
-  const producaoGeral = useMemo(() => consolidarProducao(todasAsVendas), [todasAsVendas])
-  const itensAProduzir = producaoGeral.marmitas.length + producaoGeral.especiais.length
+  const { encomendas: todasAsEncomendas } = useEncomendas()
+  const encomendasAProduzir = todasAsEncomendas.filter((e) => !e.venda_id && !e.entregue).length
 
   function trocarAba(valor) {
     const params = {}
@@ -489,10 +476,10 @@ export default function PedidosPage() {
         className="w-full min-h-[44px] mb-3 rounded-2xl border-2 border-[var(--color-beige)] bg-white text-sm font-semibold flex items-center justify-center gap-2 active:bg-[var(--color-beige)]/60"
       >
         <ChefHat size={18} className="text-[var(--color-rose)]" />
-        Lista de produção (todos os pedidos)
-        {itensAProduzir > 0 && (
+        A produzir (lista das encomendas)
+        {encomendasAProduzir > 0 && (
           <span className="rounded-full bg-[var(--color-alert)]/10 text-[var(--color-alert)] px-2 py-0.5 text-[11px]">
-            {producaoGeral.totalPedidos} pedido{producaoGeral.totalPedidos === 1 ? '' : 's'}
+            {encomendasAProduzir} encomenda{encomendasAProduzir === 1 ? '' : 's'}
           </span>
         )}
       </button>

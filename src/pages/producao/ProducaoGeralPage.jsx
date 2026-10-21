@@ -1,24 +1,32 @@
 import { useMemo } from 'react'
-import { useVendas } from '../../hooks/useVendas.js'
+import { useEncomendas } from '../../hooks/useEncomendas.js'
+import { useProdutos } from '../../hooks/useProdutos.js'
 import { formatDate, formatQuantidade, formatQuantidadeProduto } from '../../lib/format.js'
 import { consolidarProducao } from '../../lib/producao.js'
 import NotinhaShell, { agoraFormatado } from '../../components/NotinhaShell.jsx'
 
-function Origem({ pedido }) {
+function Origem({ pedido, quantidade }) {
   return (
-    <p className="text-[12px]">
-      #{pedido.numero} {pedido.cliente} · {pedido.entrega ? formatDate(pedido.entrega) : 'sem data'}
-    </p>
+    <>
+      <p className="text-[12px]">
+        {quantidade != null ? `${formatQuantidade(quantidade)}x — ` : ''}#{pedido.numero} {pedido.cliente}
+      </p>
+      <p className="text-[11px] pl-2">entrega: {pedido.entrega ? formatDate(pedido.entrega) : 'sem data'}</p>
+    </>
   )
 }
 
-// Notinha única para a cozinha com tudo que falta produzir, de todos os
-// pedidos ainda não entregues.
+// Notinha única para a cozinha com tudo que está nas encomendas e ainda não
+// foi feito (encomenda só vira pedido depois de pronta).
 export default function ProducaoGeralPage() {
-  const { vendas, loading } = useVendas()
-  const { marmitas, especiais, totalPedidos } = useMemo(() => consolidarProducao(vendas), [vendas])
+  const { encomendas, loading } = useEncomendas()
+  const { produtos, loading: carregandoProdutos } = useProdutos()
+  const { marmitas, especiais, totalEncomendas } = useMemo(
+    () => consolidarProducao(encomendas, produtos),
+    [encomendas, produtos],
+  )
 
-  if (loading) {
+  if (loading || carregandoProdutos) {
     return <p className="text-center text-[var(--color-brown-mid)] py-10">Carregando...</p>
   }
 
@@ -27,15 +35,15 @@ export default function ProducaoGeralPage() {
   return (
     <NotinhaShell jaEstavaImpressa={false} onImprimir={() => window.print()}>
       <div className="text-center mb-2">
-        <p className="font-extrabold text-[16px]">PRODUÇÃO GERAL</p>
+        <p className="font-extrabold text-[16px]">A PRODUZIR</p>
         <p>
-          {totalPedidos} pedido{totalPedidos === 1 ? '' : 's'} com itens a produzir
+          {totalEncomendas} encomenda{totalEncomendas === 1 ? '' : 's'}
         </p>
       </div>
 
       <div className="border-t border-dashed border-black my-1.5" />
 
-      {nadaAProduzir && <p>Nada a produzir no momento.</p>}
+      {nadaAProduzir && <p>Nenhuma encomenda pendente.</p>}
 
       {marmitas.length > 0 && (
         <>
@@ -43,23 +51,18 @@ export default function ProducaoGeralPage() {
           {marmitas.map((marmita) => (
             <div key={marmita.nome} className="mb-2">
               <p>{marmita.nome}</p>
-              <p className="font-extrabold text-[16px]">
-                Fazer: {formatQuantidadeProduto(marmita.total, marmita.unidade)}
+              <p>
+                Encomendado: {formatQuantidadeProduto(marmita.encomendado, marmita.unidade)}
+                {!marmita.sobDemanda && <> · Estoque: {formatQuantidade(marmita.estoque)}</>}
               </p>
-              {marmita.pedidos.length > 1 || marmita.pedidos[0].quantidade !== marmita.total ? (
-                marmita.pedidos.map((pedido, i) => (
-                  <div key={i}>
-                    <p className="text-[12px]">
-                      {formatQuantidade(pedido.quantidade)}x — #{pedido.numero} {pedido.cliente}
-                    </p>
-                    <p className="text-[11px] pl-2">
-                      entrega: {pedido.entrega ? formatDate(pedido.entrega) : 'sem data'}
-                    </p>
-                  </div>
-                ))
-              ) : (
-                <Origem pedido={marmita.pedidos[0]} />
-              )}
+              <p className="font-extrabold text-[16px]">
+                {marmita.fazer > 0
+                  ? `FAZER: ${formatQuantidadeProduto(marmita.fazer, marmita.unidade)}`
+                  : 'Já tem em estoque'}
+              </p>
+              {marmita.encomendas.map((encomenda, i) => (
+                <Origem key={i} pedido={encomenda} quantidade={encomenda.quantidade} />
+              ))}
             </div>
           ))}
         </>
@@ -72,8 +75,10 @@ export default function ProducaoGeralPage() {
           {especiais.map((item, i) => (
             <div key={i} className="mb-2">
               <p>{item.nome}</p>
-              <p className="font-extrabold text-[16px]">Fazer: {formatQuantidade(item.quantidade)}x</p>
-              <Origem pedido={item} />
+              <p className="font-extrabold text-[16px]">FAZER: {formatQuantidade(item.total)}x</p>
+              {item.encomendas.map((encomenda, j) => (
+                <Origem key={j} pedido={encomenda} quantidade={encomenda.quantidade} />
+              ))}
             </div>
           ))}
         </>
