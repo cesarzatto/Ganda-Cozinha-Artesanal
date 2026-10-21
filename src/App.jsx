@@ -23,6 +23,7 @@ import PedidoPdfPage from './pages/pedidos/PedidoPdfPage.jsx'
 import PedidoNotaPage from './pages/pedidos/PedidoNotaPage.jsx'
 import EncomendaFormPage from './pages/encomendas/EncomendaFormPage.jsx'
 import EncomendaNotaPage from './pages/encomendas/EncomendaNotaPage.jsx'
+import ProducaoGeralPage from './pages/producao/ProducaoGeralPage.jsx'
 import FinanceiroPage from './pages/financeiro/FinanceiroPage.jsx'
 import LojaPage from './pages/loja/LojaPage.jsx'
 
@@ -69,6 +70,8 @@ export default function App() {
           <Route path="/vendas/novo" element={<VendaFormPage />} />
           <Route path="/vendas/:id" element={<VendaDetailPage />} />
           <Route path="/vendas/:id/producao" element={<VendaProducaoPage />} />
+
+          <Route path="/producao" element={<ProducaoGeralPage />} />
 
           <Route path="/encomendas/novo" element={<EncomendaFormPage />} />
           <Route path="/encomendas/:id" element={<EncomendaFormPage />} />

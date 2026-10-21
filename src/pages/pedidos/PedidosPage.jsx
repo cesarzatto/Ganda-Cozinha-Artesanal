@@ -6,6 +6,7 @@ import {
   Truck,
   FileText,
   ClipboardList,
+  ChefHat,
   Search,
   ArrowDownNarrowWide,
   ArrowUpNarrowWide,
@@ -20,6 +21,7 @@ import EmptyState from '../../components/EmptyState.jsx'
 import PedidoSemClienteAlertBanner from '../../components/PedidoSemClienteAlertBanner.jsx'
 import { useVendas, useOrcamentos, useEntregasPendentes } from '../../hooks/useVendas.js'
 import { useEncomendas } from '../../hooks/useEncomendas.js'
+import { consolidarProducao } from '../../lib/producao.js'
 import { formatCurrency, formatDate, formatMonthLabel, formatQuantidade } from '../../lib/format.js'
 import { FILTROS_PERIODO, dentroDoPeriodo } from '../../lib/periodos.js'
 import { urgenciaEntrega } from '../../lib/entregas.js'
@@ -446,6 +448,9 @@ export default function PedidosPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const abaAtiva = ABAS.some((a) => a.value === searchParams.get('aba')) ? searchParams.get('aba') : 'vendas'
   const [busca, setBusca] = useState('')
+  const { vendas: todasAsVendas } = useVendas()
+  const producaoGeral = useMemo(() => consolidarProducao(todasAsVendas), [todasAsVendas])
+  const itensAProduzir = producaoGeral.marmitas.length + producaoGeral.especiais.length
 
   function trocarAba(valor) {
     const params = {}
@@ -478,6 +483,19 @@ export default function PedidosPage() {
           </button>
         ))}
       </div>
+
+      <button
+        onClick={() => navigate('/producao')}
+        className="w-full min-h-[44px] mb-3 rounded-2xl border-2 border-[var(--color-beige)] bg-white text-sm font-semibold flex items-center justify-center gap-2 active:bg-[var(--color-beige)]/60"
+      >
+        <ChefHat size={18} className="text-[var(--color-rose)]" />
+        Lista de produção (todos os pedidos)
+        {itensAProduzir > 0 && (
+          <span className="rounded-full bg-[var(--color-alert)]/10 text-[var(--color-alert)] px-2 py-0.5 text-[11px]">
+            {producaoGeral.totalPedidos} pedido{producaoGeral.totalPedidos === 1 ? '' : 's'}
+          </span>
+        )}
+      </button>
 
       <div className="relative mb-4">
         <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-brown-mid)]" />
