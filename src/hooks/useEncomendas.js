@@ -77,6 +77,13 @@ export async function salvarEncomenda({
   return data.id
 }
 
+// Vira pedido (venda): baixa do estoque o que existe e deixa o resto "a produzir".
+export async function virarPedido(id) {
+  const { data, error } = await supabase.rpc('converter_encomenda_em_venda', { p_encomenda_id: id })
+  if (error) throw error
+  return data
+}
+
 export async function marcarEncomendaNotinhaImpressa(id, impressa) {
   const { error } = await supabase.from('encomendas').update({ notinha_impressa: impressa }).eq('id', id)
   if (error) throw error

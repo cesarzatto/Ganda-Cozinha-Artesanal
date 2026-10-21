@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getVenda, marcarNotinhaImpressa } from '../../hooks/useVendas.js'
-import { formatCurrency, formatDate, formatQuantidadeProduto } from '../../lib/format.js'
+import { formatCurrency, formatDate, formatQuantidade, formatQuantidadeProduto } from '../../lib/format.js'
 import { FORMAS_PAGAMENTO } from '../../lib/formasPagamento.js'
 import NotinhaShell, { agoraFormatado } from '../../components/NotinhaShell.jsx'
 
@@ -76,6 +76,18 @@ export default function PedidoNotaPage() {
                 {formatCurrency(item.preco_unitario)}
               </span>
               <span>{formatCurrency(item.preco_unitario * item.quantidade)}</span>
+            </div>
+          </div>
+        ))}
+
+        {(venda.itens_personalizados || []).map((item, i) => (
+          <div key={`esp-${i}`} className="mb-1">
+            <p>{item.descricao}</p>
+            <div className="flex justify-between">
+              <span>
+                {formatQuantidade(item.quantidade)} x {formatCurrency(item.valor_unitario)}
+              </span>
+              <span>{formatCurrency(item.valor_unitario * item.quantidade)}</span>
             </div>
           </div>
         ))}

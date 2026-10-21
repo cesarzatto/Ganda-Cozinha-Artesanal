@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient.js'
 import { useAutoRefresh } from './useAutoRefresh.js'
 
 const SELECT_VENDA =
-  'id, numero_pedido, titulo, status, entregue, valor_total, desconto, forma_contato, forma_pagamento, pago, data_venda, data_entrega, data_validade, sem_valor, ifood, pedido_online, telefone_pedido, notinha_impressa, salvar_endereco_principal, observacao, tipo_frete, distancia_km_ida, custo_entrega, endereco_entrega, created_at, cliente_id, clientes ( nome, telefone, cep, rua, numero, complemento ), venda_itens ( quantidade, preco_unitario, produtos ( id, nome, rendimento_lote, rendimento_unidade_medida ) )'
+  'id, numero_pedido, titulo, status, entregue, valor_total, desconto, forma_contato, forma_pagamento, pago, data_venda, data_entrega, data_validade, sem_valor, ifood, pedido_online, telefone_pedido, notinha_impressa, salvar_endereco_principal, observacao, tipo_frete, distancia_km_ida, custo_entrega, endereco_entrega, created_at, cliente_id, encomenda_id, itens_personalizados, clientes ( nome, telefone, cep, rua, numero, complemento ), venda_itens ( quantidade, preco_unitario, qtd_produzir, produtos ( id, nome, rendimento_lote, rendimento_unidade_medida ) )'
 
 export function useVendas() {
   const [vendas, setVendas] = useState([])

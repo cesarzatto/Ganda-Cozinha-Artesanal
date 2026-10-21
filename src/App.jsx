@@ -16,6 +16,7 @@ import ClienteFormPage from './pages/clientes/ClienteFormPage.jsx'
 import ConfiguracoesPage from './pages/config/ConfiguracoesPage.jsx'
 import VendaFormPage from './pages/vendas/VendaFormPage.jsx'
 import VendaDetailPage from './pages/vendas/VendaDetailPage.jsx'
+import VendaProducaoPage from './pages/vendas/VendaProducaoPage.jsx'
 import OrcamentoFormPage from './pages/orcamentos/OrcamentoFormPage.jsx'
 import PedidosPage from './pages/pedidos/PedidosPage.jsx'
 import PedidoPdfPage from './pages/pedidos/PedidoPdfPage.jsx'
@@ -67,6 +68,7 @@ export default function App() {
 
           <Route path="/vendas/novo" element={<VendaFormPage />} />
           <Route path="/vendas/:id" element={<VendaDetailPage />} />
+          <Route path="/vendas/:id/producao" element={<VendaProducaoPage />} />
 
           <Route path="/encomendas/novo" element={<EncomendaFormPage />} />
           <Route path="/encomendas/:id" element={<EncomendaFormPage />} />

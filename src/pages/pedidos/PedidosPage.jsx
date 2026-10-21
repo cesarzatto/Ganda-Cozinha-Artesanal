@@ -46,8 +46,24 @@ const CORES_URGENCIA = {
   normal: 'bg-[var(--color-beige)]/60 text-[var(--color-brown-mid)]',
 }
 
-function resumoItens(itens) {
-  return itens.map((item) => `${item.quantidade}x ${item.produtos?.nome || 'Produto removido'}`).join(', ')
+function resumoItens(itens, personalizados = []) {
+  const doCardapio = itens.map((item) => `${item.quantidade}x ${item.produtos?.nome || 'Produto removido'}`)
+  const especiais = personalizados.map((item) => `${formatQuantidade(item.quantidade)}x ${item.descricao}`)
+  return [...doCardapio, ...especiais].join(', ')
+}
+
+function temProducao(venda) {
+  return (
+    (venda.itens_personalizados || []).length > 0 || (venda.venda_itens || []).some((i) => Number(i.qtd_produzir) > 0)
+  )
+}
+
+// Busca sem diferenciar maiúsculas/acentos ("jose" acha "José").
+function normalizar(texto) {
+  return (texto || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
 }
 
 function nomeDoPedido(pedido) {
@@ -72,11 +88,16 @@ function agruparPorMes(vendas) {
 
 function combinaComBusca(pedido, busca) {
   if (!busca.trim()) return true
-  const termo = busca.trim().toLowerCase()
+  const termo = normalizar(busca.trim())
+  const digitos = busca.replace(/\D/g, '')
   const numero = String(pedido.numero_pedido ?? '')
-  const titulo = (pedido.titulo || '').toLowerCase()
-  const cliente = (pedido.clientes?.nome || '').toLowerCase()
-  return numero.includes(termo) || titulo.includes(termo) || cliente.includes(termo)
+  const telefone = (pedido.clientes?.telefone || pedido.telefone_pedido || '').replace(/\D/g, '')
+  return (
+    numero.includes(termo) ||
+    normalizar(pedido.titulo).includes(termo) ||
+    normalizar(pedido.clientes?.nome).includes(termo) ||
+    (digitos.length >= 4 && telefone.includes(digitos))
+  )
 }
 
 const FILTROS_PAGAMENTO = [
@@ -95,7 +116,7 @@ function AbaVendas({ busca }) {
     () =>
       vendas.filter(
         (v) =>
-          dentroDoPeriodo(v.data_venda, filtro) &&
+          (busca.trim() || dentroDoPeriodo(v.data_venda, filtro)) &&
           combinaComBusca(v, busca) &&
           (filtroPagamento === 'todos' || (filtroPagamento === 'pagos' ? v.pago : !v.pago)),
       ),
@@ -147,7 +168,8 @@ function AbaVendas({ busca }) {
 
       {!loading && (
         <p className="text-sm text-[var(--color-brown-mid)] -mt-2">
-          {vendasFiltradas.length} venda{vendasFiltradas.length === 1 ? '' : 's'} ·{' '}
+          {vendasFiltradas.length} venda{vendasFiltradas.length === 1 ? '' : 's'}
+          {busca.trim() ? ' (em todo o período)' : ''} ·{' '}
           {filtroPagamento === 'nao_pagos' ? 'A receber: ' : ''}
           {formatCurrency(totalFiltrado)}
         </p>
@@ -182,7 +204,7 @@ function AbaVendas({ busca }) {
                       <p className="font-semibold truncate">
                         #{venda.numero_pedido} · {nomeDoPedido(venda)}
                       </p>
-                      <p className="text-sm text-[var(--color-brown-mid)]">{resumoItens(venda.venda_itens)}</p>
+                      <p className="text-sm text-[var(--color-brown-mid)]">{resumoItens(venda.venda_itens, venda.itens_personalizados)}</p>
                       <p className="text-xs text-[var(--color-brown-mid)] mt-0.5">{formatDate(venda.data_venda)}</p>
                       {Number(venda.desconto) > 0 && (
                         <p className="text-xs text-[var(--color-alert)]">
@@ -207,6 +229,11 @@ function AbaVendas({ busca }) {
                         {venda.pedido_online && !venda.cliente_id && (
                           <span className="inline-block rounded-full bg-[var(--color-alert)]/10 text-[var(--color-alert)] px-2 py-0.5 text-[11px] font-semibold">
                             Cadastrar cliente
+                          </span>
+                        )}
+                        {temProducao(venda) && (
+                          <span className="inline-block rounded-full bg-[var(--color-alert)]/10 text-[var(--color-alert)] px-2 py-0.5 text-[11px] font-semibold">
+                            A produzir
                           </span>
                         )}
                         {!venda.notinha_impressa && (
@@ -275,12 +302,12 @@ function AbaEncomendas({ busca }) {
 
   const filtradas = useMemo(() => {
     if (!busca.trim()) return encomendas
-    const termo = busca.trim().toLowerCase()
+    const termo = normalizar(busca.trim())
     return encomendas.filter(
       (e) =>
         String(e.numero).includes(termo) ||
-        (e.clientes?.nome || e.cliente_nome).toLowerCase().includes(termo) ||
-        e.itens.some((item) => item.descricao.toLowerCase().includes(termo)),
+        normalizar(e.clientes?.nome || e.cliente_nome).includes(termo) ||
+        e.itens.some((item) => normalizar(item.descricao).includes(termo)),
     )
   }, [encomendas, busca])
 
@@ -321,6 +348,11 @@ function AbaEncomendas({ busca }) {
               >
                 {encomenda.pago ? 'Pago' : 'Não pago'}
               </span>
+              {encomenda.venda_id && (
+                <span className="inline-block rounded-full bg-[var(--color-success)]/10 text-[var(--color-success)] px-2 py-0.5 text-[11px] font-semibold">
+                  Virou pedido #{encomenda.venda_numero}
+                </span>
+              )}
               {encomenda.entregue && (
                 <span className="inline-block rounded-full bg-[var(--color-beige)] text-[var(--color-brown-dark)] px-2 py-0.5 text-[11px] font-semibold">
                   Entregue

@@ -11,6 +11,8 @@ import {
   AlertTriangle,
   Trash2,
   Receipt,
+  ChefHat,
+  Printer,
   Pencil,
   Plus,
   X,
@@ -36,7 +38,8 @@ import { useConfiguracoes } from '../../hooks/useConfiguracoes.js'
 import { useProdutos } from '../../hooks/useProdutos.js'
 import { useInsumos } from '../../hooks/useInsumos.js'
 import { useInsumosNecessarios } from '../../hooks/useInsumosNecessarios.js'
-import { formatCurrency, formatDate, formatQuantidadeProduto } from '../../lib/format.js'
+import { formatCurrency, formatDate, formatQuantidade, formatQuantidadeProduto } from '../../lib/format.js'
+import { listarProducao } from '../../lib/producao.js'
 import { FORMAS_CONTATO } from '../../lib/formasContato.js'
 import { FORMAS_PAGAMENTO } from '../../lib/formasPagamento.js'
 import {
@@ -219,6 +222,9 @@ export default function VendaDetailPage() {
         })),
     )
     setDescontoItens(Number(venda.desconto) > 0 ? String(venda.desconto) : '')
+    setLinhasItens((atual) =>
+      atual.length > 0 ? atual : [{ key: crypto.randomUUID(), produtoId: '', quantidade: '1', precoUnitario: 0 }],
+    )
     setEditandoItens(true)
   }
 
@@ -256,10 +262,17 @@ export default function VendaDetailPage() {
     (soma, item) => soma + Number(item.precoUnitario) * item.quantidade,
     0,
   )
-  const totalEdicao = Math.max(subtotalEdicao - (Number(descontoItens) || 0), 0) + Number(venda?.custo_entrega || 0)
+  const itensEspeciais = venda?.itens_personalizados || []
+  const valorEspeciais = itensEspeciais.reduce(
+    (soma, item) => soma + Number(item.quantidade) * Number(item.valor_unitario),
+    0,
+  )
+  const producao = venda ? listarProducao(venda) : null
+  const totalEdicao =
+    Math.max(subtotalEdicao + valorEspeciais - (Number(descontoItens) || 0), 0) + Number(venda?.custo_entrega || 0)
 
   async function handleSalvarItens() {
-    if (itensValidosEdicao.length === 0) {
+    if (itensValidosEdicao.length === 0 && itensEspeciais.length === 0) {
       showToast('Escolha ao menos um produto e a quantidade.')
       return
     }
@@ -476,6 +489,12 @@ export default function VendaDetailPage() {
                 />
               </label>
 
+              {itensEspeciais.length > 0 && (
+                <p className="text-xs text-[var(--color-brown-mid)]">
+                  Os {itensEspeciais.length} item(ns) especial(is) da encomenda ({formatCurrency(valorEspeciais)}) já
+                  estão somados e não se editam aqui.
+                </p>
+              )}
               <div className="flex justify-between items-center pt-2 border-t border-[var(--color-beige)]">
                 <span className="font-semibold">Novo total</span>
                 <span className="font-display text-xl font-semibold">{formatCurrency(totalEdicao)}</span>
@@ -507,6 +526,15 @@ export default function VendaDetailPage() {
                     <span>{formatCurrency(Number(item.preco_unitario) * item.quantidade)}</span>
                   </div>
                 ))}
+                {itensEspeciais.map((item, i) => (
+                  <div key={`esp-${i}`} className="flex justify-between text-sm">
+                    <span className="text-[var(--color-brown-mid)]">
+                      {formatQuantidade(item.quantidade)}x {item.descricao}{' '}
+                      <span className="text-xs">(especial)</span>
+                    </span>
+                    <span>{formatCurrency(Number(item.valor_unitario) * Number(item.quantidade))}</span>
+                  </div>
+                ))}
               </div>
               {Number(venda.desconto) > 0 && (
                 <div className="flex justify-between text-sm pt-2 border-t border-[var(--color-beige)]">
@@ -521,6 +549,34 @@ export default function VendaDetailPage() {
             </>
           )}
         </Card>
+
+        {producao?.temProducao && (
+          <Card className="flex flex-col gap-3 border-2 border-[var(--color-alert)]">
+            <h3 className="font-semibold flex items-center gap-2">
+              <ChefHat size={18} className="text-[var(--color-alert)]" /> A produzir
+            </h3>
+            <div className="flex flex-col gap-1.5">
+              {producao.catalogo.map((item, i) => (
+                <div key={`cat-${i}`} className="flex justify-between text-sm gap-3">
+                  <span>{item.nome}</span>
+                  <span className="font-semibold shrink-0">
+                    {formatQuantidadeProduto(item.produzir, item.unidade)}
+                    {item.produzir < item.pedido ? ` de ${formatQuantidade(item.pedido)}` : ''}
+                  </span>
+                </div>
+              ))}
+              {producao.personalizados.map((item, i) => (
+                <div key={`per-${i}`} className="flex justify-between text-sm gap-3">
+                  <span>{item.nome} <span className="text-xs text-[var(--color-brown-mid)]">(especial)</span></span>
+                  <span className="font-semibold shrink-0">{formatQuantidade(item.produzir)}x</span>
+                </div>
+              ))}
+            </div>
+            <Button type="button" variant="outline" onClick={() => navigate(`/vendas/${id}/producao`)} className="gap-2">
+              <Printer size={18} /> Imprimir notinha de produção
+            </Button>
+          </Card>
+        )}
 
         <InsumosNecessariosCard linhas={insumosNecessarios} carregando={carregandoInsumos} />
 
