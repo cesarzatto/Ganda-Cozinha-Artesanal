@@ -338,11 +338,6 @@ function AbaEncomendas({ busca }) {
               >
                 {encomenda.pago ? 'Pago' : 'Não pago'}
               </span>
-              {encomenda.venda_id && (
-                <span className="inline-block rounded-full bg-[var(--color-success)]/10 text-[var(--color-success)] px-2 py-0.5 text-[11px] font-semibold">
-                  Virou pedido #{encomenda.venda_numero}
-                </span>
-              )}
               {encomenda.entregue && (
                 <span className="inline-block rounded-full bg-[var(--color-beige)] text-[var(--color-brown-dark)] px-2 py-0.5 text-[11px] font-semibold">
                   Entregue
@@ -437,7 +432,7 @@ export default function PedidosPage() {
   const abaAtiva = ABAS.some((a) => a.value === searchParams.get('aba')) ? searchParams.get('aba') : 'vendas'
   const [busca, setBusca] = useState('')
   const { encomendas: todasAsEncomendas } = useEncomendas()
-  const encomendasAProduzir = todasAsEncomendas.filter((e) => !e.venda_id && !e.entregue).length
+  const encomendasAProduzir = todasAsEncomendas.filter((e) => !e.entregue).length
 
   function trocarAba(valor) {
     const params = {}

@@ -65,8 +65,6 @@ export default function EncomendaFormPage() {
   const [confirmarExclusao, setConfirmarExclusao] = useState(false)
   const [confirmarVirarPedido, setConfirmarVirarPedido] = useState(false)
   const [numero, setNumero] = useState(null)
-  const [vendaId, setVendaId] = useState(null)
-  const [vendaNumero, setVendaNumero] = useState(null)
 
   const { clientes, refetch: refetchClientes } = useClientes()
   const [clienteId, setClienteId] = useState('')
@@ -87,8 +85,6 @@ export default function EncomendaFormPage() {
       .then((e) => {
         if (!ativo) return
         setNumero(e.numero)
-        setVendaId(e.venda_id)
-        setVendaNumero(e.venda_numero)
         setClienteId(e.cliente_id || '')
         setEnderecoEntrega(e.endereco_entrega || '')
         setDataEncomenda(e.data_encomenda)
@@ -115,8 +111,6 @@ export default function EncomendaFormPage() {
       ativo = false
     }
   }, [id, editando, showToast])
-
-  const somenteLeitura = Boolean(vendaId)
 
   const itensValidos = useMemo(
     () =>
@@ -274,18 +268,7 @@ export default function EncomendaFormPage() {
       }
     >
       <div className="flex flex-col gap-4">
-        {somenteLeitura && (
-          <Card className="flex flex-col gap-3 border-2 border-[var(--color-success)]">
-            <p className="text-sm font-semibold">
-              Essa encomenda já virou o pedido #{vendaNumero}. Para mudar itens, entrega ou pagamento, use o pedido.
-            </p>
-            <Button type="button" onClick={() => navigate(`/vendas/${vendaId}`)}>
-              Abrir pedido #{vendaNumero}
-            </Button>
-          </Card>
-        )}
-
-        <fieldset disabled={somenteLeitura} className="flex flex-col gap-4 border-0 p-0 m-0 min-w-0">
+        <div className="flex flex-col gap-4">
           <Card className="flex flex-col gap-3">
             <div className="flex flex-col gap-1">
               <span className="text-sm font-semibold">Cliente</span>
@@ -500,9 +483,9 @@ export default function EncomendaFormPage() {
           <Button onClick={handleSalvar} disabled={salvando}>
             {salvando ? 'Salvando...' : editando ? 'Salvar alterações' : 'Salvar encomenda'}
           </Button>
-        </fieldset>
+        </div>
 
-        {editando && !somenteLeitura && (
+        {editando && (
           <Button type="button" onClick={() => setConfirmarVirarPedido(true)} disabled={salvando} className="gap-2">
             <ClipboardCheck size={18} /> Virar pedido
           </Button>
@@ -514,7 +497,7 @@ export default function EncomendaFormPage() {
           </Button>
         )}
 
-        {editando && !somenteLeitura && (
+        {editando && (
           <Button type="button" variant="outline" onClick={() => setConfirmarExclusao(true)} className="gap-2">
             <Trash2 size={18} /> Apagar encomenda
           </Button>
@@ -530,7 +513,7 @@ export default function EncomendaFormPage() {
       <ConfirmModal
         open={confirmarVirarPedido}
         title="Virar pedido? (já está pronta)"
-        description="Use quando a encomenda já foi feita: as marmitas do cardápio baixam do estoque e o valor entra no financeiro como venda. Ela sai da lista 'A produzir' e depois só o pedido pode ser editado."
+        description="Use quando a encomenda já foi feita: as marmitas do cardápio baixam do estoque e o valor entra no financeiro como venda. Ela sai de Encomendas e passa a existir só como pedido, em Vendas."
         confirmLabel={salvando ? 'Criando...' : 'Virar pedido'}
         onConfirm={handleVirarPedido}
         onCancel={() => setConfirmarVirarPedido(false)}

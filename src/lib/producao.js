@@ -1,5 +1,4 @@
-// Lista de produção: tudo que está nas encomendas ainda não viradas em pedido
-// (nem entregues). Marmitas do cardápio são somadas por produto e comparadas
+// Lista de produção: tudo que está nas encomendas pendentes (não entregues). Marmitas do cardápio são somadas por produto e comparadas
 // com o estoque; itens especiais iguais também são somados.
 
 // Chave para agrupar itens digitados à mão: ignora maiúsculas, acentos e espaços sobrando.
@@ -19,7 +18,7 @@ export function consolidarProducao(encomendas, produtos) {
   const pendentes = new Set()
 
   for (const encomenda of encomendas) {
-    if (encomenda.venda_id || encomenda.entregue) continue
+    if (encomenda.entregue) continue
     pendentes.add(encomenda.id)
 
     const origem = {

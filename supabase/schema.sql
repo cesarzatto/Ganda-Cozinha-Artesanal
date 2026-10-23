@@ -552,9 +552,9 @@ as $$
 declare
   v_status text;
   v_custo_entrega numeric;
-  v_encomenda_id uuid;
   v_extras numeric;
   v_tem_extras boolean;
+  v_tolera_falta boolean;
   v_novo_subtotal numeric;
   v_diff record;
   v_item jsonb;
@@ -567,13 +567,14 @@ declare
   v_linha_qtd numeric;
   v_linha_produzir numeric;
 begin
-  select v.status, v.custo_entrega, v.encomenda_id,
+  select v.status, v.custo_entrega,
          coalesce((
            select sum((e.value ->> 'quantidade')::numeric * (e.value ->> 'valor_unitario')::numeric)
            from jsonb_array_elements(v.itens_personalizados) e
          ), 0),
-         jsonb_array_length(v.itens_personalizados) > 0
-  into v_status, v_custo_entrega, v_encomenda_id, v_extras, v_tem_extras
+         jsonb_array_length(v.itens_personalizados) > 0,
+         exists (select 1 from venda_itens vi where vi.venda_id = v.id and vi.qtd_produzir > 0)
+  into v_status, v_custo_entrega, v_extras, v_tem_extras, v_tolera_falta
   from vendas v where v.id = p_venda_id;
 
   if v_status is null then
@@ -612,14 +613,14 @@ begin
     if v_diff.sob_demanda then
       v_producao := v_producao || jsonb_build_object(
         v_diff.produto_id::text,
-        case when v_encomenda_id is not null then v_diff.novo_qtd else 0 end
+        case when v_tolera_falta then v_diff.novo_qtd else 0 end
       );
       continue;
     end if;
 
     v_antiga_baixa := v_diff.antigo_qtd - v_diff.antigo_produzir;
 
-    if v_encomenda_id is not null then
+    if v_tolera_falta then
       v_nova_baixa := least(v_diff.novo_qtd, greatest(v_diff.estoque_atual + v_antiga_baixa, 0));
     else
       v_nova_baixa := v_diff.novo_qtd;
@@ -652,7 +653,6 @@ begin
 
   delete from venda_itens where venda_id = p_venda_id;
 
-  -- a parte "a produzir" de cada produto é repartida entre as linhas dele
   for v_item in select value from jsonb_array_elements(p_itens)
   loop
     v_pid := v_item ->> 'produto_id';
@@ -968,7 +968,7 @@ $$;
 -- demanda" ficam de fora, igual no registro) e apaga o pedido. Usado como
 -- rede de segurança para pedidos que vieram errados da loja online (ex:
 -- clique duplo) ou qualquer engano manual.
--- Encomenda vira pedido: baixa do estoque só o que existe, o resto fica "a produzir".
+-- Encomenda vira pedido (movida: a encomenda é apagada): baixa do estoque só o que existe.
 create or replace function converter_encomenda_em_venda(p_encomenda_id uuid)
 returns uuid
 language plpgsql
@@ -978,7 +978,6 @@ as $$
 declare
   v_enc encomendas%rowtype;
   v_venda_id uuid;
-  v_numero integer;
   v_item jsonb;
   v_produto_id uuid;
   v_qtd numeric;
@@ -990,9 +989,6 @@ begin
   select * into v_enc from encomendas where id = p_encomenda_id for update;
   if not found then
     raise exception 'Encomenda não encontrada';
-  end if;
-  if v_enc.venda_id is not null then
-    raise exception 'Essa encomenda já virou pedido';
   end if;
   if v_enc.cliente_id is null then
     raise exception 'Escolha um cliente para essa encomenda';
@@ -1008,14 +1004,14 @@ begin
   insert into vendas (
     cliente_id, valor_total, desconto, data_venda, data_entrega, forma_pagamento,
     observacao, status, tipo_frete, pago, entregue, endereco_entrega,
-    encomenda_id, itens_personalizados
+    itens_personalizados
   )
   values (
     v_enc.cliente_id, v_enc.valor_total, 0, current_date, v_enc.data_entrega, v_enc.forma_pagamento,
     v_enc.observacao, 'confirmada', 'retirada', v_enc.pago, v_enc.entregue, v_enc.endereco_entrega,
-    v_enc.id, v_extras
+    v_extras
   )
-  returning id, numero_pedido into v_venda_id, v_numero;
+  returning id into v_venda_id;
 
   for v_item in
     select e.value from jsonb_array_elements(v_enc.itens) e where e.value ->> 'tipo' = 'catalogo'
@@ -1029,7 +1025,7 @@ begin
       raise exception 'Um produto dessa encomenda não existe mais';
     end if;
 
-    -- sob demanda não tem estoque: tudo é produzido. Senão baixa só o que há.
+    -- baixa só o que existe em estoque; o resto foi feito na hora (qtd_produzir)
     if v_sob_demanda then
       v_baixa := 0;
     else
@@ -1047,7 +1043,7 @@ begin
     end if;
   end loop;
 
-  update encomendas set venda_id = v_venda_id, venda_numero = v_numero where id = v_enc.id;
+  delete from encomendas where id = v_enc.id;
 
   return v_venda_id;
 end;
