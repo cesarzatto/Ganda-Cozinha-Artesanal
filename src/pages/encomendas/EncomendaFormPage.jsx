@@ -10,6 +10,7 @@ import { useToast } from '../../components/ToastProvider.jsx'
 import { useClientes, getCliente } from '../../hooks/useClientes.js'
 import { useProdutos } from '../../hooks/useProdutos.js'
 import { enderecoCompletoCliente } from '../../lib/frete.js'
+import { acharProdutoDoCardapio } from '../../lib/cardapio.js'
 import {
   getEncomenda,
   salvarEncomenda,
@@ -172,6 +173,30 @@ export default function EncomendaFormPage() {
           : l,
       ),
     )
+  }
+
+  // Liga a linha a uma marmita do cardápio (é o que faz baixar do estoque).
+  // Mantém o valor já digitado, se houver.
+  const sugestaoDoCardapio = (linha) =>
+    linha.descricao.trim() ? (acharProdutoDoCardapio(linha.descricao, produtosVendaveis)?.produto ?? null) : null
+
+  const itensParecidosComCardapio = linhas.filter((l) => !l.produtoId && sugestaoDoCardapio(l)).length
+
+  function usarProdutoNaLinha(key, produto) {
+    setLinhas((atual) =>
+      atual.map((l) =>
+        l.key === key
+          ? { ...l, produtoId: produto.id, descricao: produto.nome, valorUnitario: l.valorUnitario || String(produto.preco_venda) }
+          : l,
+      ),
+    )
+  }
+
+  // Digitou exatamente o nome de uma marmita: já liga ao cardápio sozinho.
+  function mudarDescricao(key, texto) {
+    const achado = acharProdutoDoCardapio(texto, produtosVendaveis)
+    if (achado?.exato) usarProdutoNaLinha(key, achado.produto)
+    else atualizarLinha(key, 'descricao', texto)
   }
 
   function removerLinha(key) {
@@ -363,13 +388,31 @@ export default function EncomendaFormPage() {
                   </div>
 
                   {!linha.produtoId && (
-                    <input
-                      value={linha.descricao}
-                      onChange={(e) => atualizarLinha(linha.key, 'descricao', e.target.value)}
-                      placeholder="O que é? (ex: Bolo de aniversário)"
-                      aria-label={`Descrição do item ${i + 1}`}
-                      className={inputClass}
-                    />
+                    <>
+                      <input
+                        value={linha.descricao}
+                        onChange={(e) => mudarDescricao(linha.key, e.target.value)}
+                        list="marmitas-do-cardapio"
+                        placeholder="O que é? (ex: Bolo de aniversário)"
+                        aria-label={`Descrição do item ${i + 1}`}
+                        className={inputClass}
+                      />
+                      {sugestaoDoCardapio(linha) && (
+                        <div className="flex flex-col gap-2 rounded-2xl bg-[var(--color-beige)] p-3">
+                          <p className="text-xs font-semibold">
+                            Parece a marmita "{sugestaoDoCardapio(linha).nome}" do cardápio. Item escrito à mão NÃO baixa
+                            do estoque.
+                          </p>
+                          <button
+                            type="button"
+                            onClick={() => usarProdutoNaLinha(linha.key, sugestaoDoCardapio(linha))}
+                            className="min-h-[40px] rounded-2xl bg-white border-2 border-[var(--color-brown-dark)] text-sm font-semibold"
+                          >
+                            Usar a marmita do cardápio
+                          </button>
+                        </div>
+                      )}
+                    </>
                   )}
 
                   <div className="grid grid-cols-2 gap-2">
@@ -504,6 +547,12 @@ export default function EncomendaFormPage() {
         )}
       </div>
 
+      <datalist id="marmitas-do-cardapio">
+        {produtosVendaveis.map((p) => (
+          <option key={p.id} value={p.nome} />
+        ))}
+      </datalist>
+
       <ClienteQuickCreateModal
         open={novoClienteAberto}
         onCriado={handleClienteCriado}
@@ -513,7 +562,11 @@ export default function EncomendaFormPage() {
       <ConfirmModal
         open={confirmarVirarPedido}
         title="Virar pedido? (já está pronta)"
-        description="Use quando a encomenda já foi feita: as marmitas do cardápio baixam do estoque e o valor entra no financeiro como venda. Ela sai de Encomendas e passa a existir só como pedido, em Vendas."
+        description={`Use quando a encomenda já foi feita: as marmitas do cardápio baixam do estoque e o valor entra no financeiro como venda. Ela sai de Encomendas e passa a existir só como pedido, em Vendas.${
+          itensParecidosComCardapio > 0
+            ? ` ATENÇÃO: ${itensParecidosComCardapio} item(ns) escrito(s) à mão parece(m) marmita do cardápio e NÃO vai(vão) baixar do estoque. Cancele e use "Usar a marmita do cardápio" nesses itens.`
+            : ''
+        }`}
         confirmLabel={salvando ? 'Criando...' : 'Virar pedido'}
         onConfirm={handleVirarPedido}
         onCancel={() => setConfirmarVirarPedido(false)}
