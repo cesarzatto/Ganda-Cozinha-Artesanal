@@ -39,3 +39,18 @@ export function formatQuantidadeProduto(quantidade, unidadeMedida) {
   }
   return `${formatQuantidade(quantidade)} ${unidadeMedida}`
 }
+
+// Total de itens de um pedido para a notinha: soma as unidades; produto
+// medido (kg/L) conta como 1 item por linha, já que "2,5 kg" não é 2,5 itens.
+export function contarItens(itens, personalizados = []) {
+  const doCardapio = itens.reduce((soma, item) => {
+    const medida = item.produtos?.rendimento_unidade_medida
+    return soma + (!medida || medida === 'unidade' ? Number(item.quantidade) : 1)
+  }, 0)
+  const especiais = personalizados.reduce((soma, item) => soma + Number(item.quantidade), 0)
+  return doCardapio + especiais
+}
+
+export function formatTotalItens(total) {
+  return `${formatQuantidade(total)} ${Number(total) === 1 ? 'item' : 'itens'}`
+}

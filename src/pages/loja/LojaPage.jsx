@@ -77,6 +77,7 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
   const [nome, setNome] = useState('')
   const [telefone, setTelefone] = useState('')
   const [formaPagamento, setFormaPagamento] = useState('')
+  const [observacaoCliente, setObservacaoCliente] = useState('')
   const [itemGratisId, setItemGratisId] = useState('')
   const [enviando, setEnviando] = useState(false)
 
@@ -224,7 +225,10 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
         })),
         valorTotal: totalComPromo,
         desconto: descontoPromo,
-        observacao: promoAtiva ? `Promoção 10+1 no Pix aplicada (brinde: ${produtoGratis.nome})` : null,
+        observacao:
+          [observacaoCliente.trim(), promoAtiva ? `Promoção 10+1 no Pix aplicada (brinde: ${produtoGratis.nome})` : '']
+            .filter(Boolean)
+            .join(' | ') || null,
         formaPagamento,
         endereco: enderecoFinal,
         enderecoEstruturado: precisaDigitarEndereco ? { cep, rua, numero, complemento } : null,
@@ -245,6 +249,7 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
           : undefined,
         formaPagamentoLabel: FORMAS_PAGAMENTO.find((f) => f.value === formaPagamento)?.label,
         endereco: enderecoFinal,
+        observacao: observacaoCliente.trim(),
       })
 
       onEnviado(link)
@@ -419,6 +424,18 @@ function CheckoutModal({ total, itensCarrinho, produtos, onFechar, onEnviado }) 
               </span>
             </button>
           )}
+
+          <label className="flex flex-col gap-1">
+            <span className="text-sm font-semibold">Observação (opcional)</span>
+            <textarea
+              value={observacaoCliente}
+              onChange={(e) => setObservacaoCliente(e.target.value)}
+              maxLength={300}
+              rows={3}
+              placeholder="Ex: sem cebola, entregar depois das 18h..."
+              className="rounded-2xl border-2 border-[var(--color-beige)] px-4 py-3 outline-none focus:border-[var(--color-rose)] resize-none"
+            />
+          </label>
 
           <select
             value={formaPagamento}

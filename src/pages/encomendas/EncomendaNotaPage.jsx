@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getEncomenda, marcarEncomendaNotinhaImpressa } from '../../hooks/useEncomendas.js'
-import { formatCurrency, formatDate, formatQuantidade } from '../../lib/format.js'
+import { formatCurrency, formatDate, formatQuantidade, formatTotalItens } from '../../lib/format.js'
 import { FORMAS_PAGAMENTO } from '../../lib/formasPagamento.js'
 import NotinhaShell, { agoraFormatado } from '../../components/NotinhaShell.jsx'
 
@@ -73,6 +73,10 @@ export default function EncomendaNotaPage() {
           </div>
         </div>
       ))}
+
+      <p className="font-extrabold text-right">
+        {formatTotalItens(encomenda.itens.reduce((soma, item) => soma + Number(item.quantidade), 0))}
+      </p>
 
       <div className="border-t border-dashed border-black my-1.5" />
 
